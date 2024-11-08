@@ -5,8 +5,8 @@ import { PI } from 'three/webgpu';
 
 
 const CAMERA_POS_X = 0;
-const CAMERA_POS_Y = 0;
-const CAMERA_POS_Z = 10;
+const CAMERA_POS_Y = 5;
+const CAMERA_POS_Z = -7;
 
 const CAMERA_TARGET_X = 0;
 const CAMERA_TARGET_Y = 0;
@@ -62,7 +62,7 @@ function scalingMatrix(sx, sy, sz) {
 const scene = new THREE.Scene();
 
 //THREE.PerspectiveCamera( fov angle, aspect ratio, near depth, far depth );
-const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 100 );
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( window.innerWidth, window.innerHeight );
@@ -283,6 +283,22 @@ wireframe_geometry.setAttribute( 'position', new THREE.BufferAttribute( wirefram
 
 
 
+const planeGeometry = new THREE.PlaneGeometry(20, 20); // 100x100 units, adjust size as needed
+const planeMaterial = new THREE.MeshPhongMaterial({
+    color: 0x808080, // Grey color
+    //roughness: 0.8,  // High roughness for a more matte look
+    metalness: 0.0   // No metalness for a simple floor
+});
+
+// Create the plane mesh and rotate it to be horizontal
+const floor = new THREE.Mesh(planeGeometry, planeMaterial);
+floor.rotation.x = -Math.PI / 2; // Rotate to lie flat
+floor.position.y = 0; // Set the floor's Y position to 0, or slightly below the cube's start position
+
+// Add shadow properties if using shadows
+// Add the floor to the scene
+scene.add(floor);
+
 
 
 
@@ -306,36 +322,89 @@ for (let i = 0; i < NUMB_CUBES; i++) {
 const clock = new THREE.Clock();
 let isJumping = false;
 let jumpStartTime = 0;
-const gravity = 9.8;         // Custom gravity value, adjust as desired
+const GRAVITY = 9.8;         // Custom gravity value, adjust as desired
 const jumpVelocity = 5;      // Initial jump velocity in units per second
 let currentHeight = 0;       // Current height of the cube
+
+let moveSpeed = 0.03;
+let moveForward = false;
+let moveBackward = false;
+let moveLeft = false;
+let moveRight = false;
+
+let playerX = 0;
+let playerY = l;
+let playerZ = 0;
+
+
+
 let still = false;
 
 
 window.addEventListener('keydown', onKeyPress); // onKeyPress is called each time a key is pressed
+window.addEventListener('keyup', onKeyUp);
+
+function onKeyUp(event){
+  switch (event.key) {
+    case 'w':
+    case 'ArrowUp':
+        moveForward = false;
+        break;
+
+    case 's':
+    case 'ArrowDown':
+        moveBackward = false;
+        break;
+
+    case 'a':
+    case 'ArrowLeft':
+        moveLeft = false;
+        break;
+
+    case 'd':
+    case 'ArrowRight':
+        moveRight = false;
+        break;
+}
+}
+
 // Function to handle keypress
 function onKeyPress(event) {
     switch (event.key) {
-        case 's': // Note we only do this if s is pressed.
-            still = !still;
-            if(still){
-              clock.stop();
-            } else{
-              clock.start();
-            }
-            break;
-        case 'w':
+        case 'e':
           for (let i = 0; i < NUMB_CUBES; i++){
               wires[i].visible = !wires[i].visible;
               cubes[i].visible = !cubes[i].visible;
           }
-        case 'j': // Press 'j' to jump
-          if (!isJumping) {
-              isJumping = true;
-              jumpStartTime = clock.getElapsedTime();
-              currentHeight = 0; // Reset height to ground level
-          }
           break;
+        case 'j': // Jump with "j"
+        case ' ': // Also jump with "Arrow Up"
+            if (!isJumping) {
+                isJumping = true;
+                jumpStartTime = clock.getElapsedTime();
+                currentHeight = l; // Reset height to ground level
+            }
+            break;
+
+        case 'w': // Forward (positive z)
+        case 'ArrowUp': // Forward (positive z)
+            moveForward = true;
+            break;
+
+        case 's': // Backward (negative z)
+        case 'ArrowDown': // Backward (negative z)
+            moveBackward = true;
+            break;
+
+        case 'a': // Left (positive x)
+        case 'ArrowLeft': // Left (positive x)
+            moveLeft = true;
+            break;
+
+        case 'd': // Right (negative x)
+        case 'ArrowRight': // Right (negative x)
+            moveRight = true;
+            break;
 
         default:
             console.log(`Key ${event.key} pressed`);
@@ -344,22 +413,36 @@ function onKeyPress(event) {
 
 function animate() {
 
-    if (isJumping) {
-        const elapsedTime = clock.getElapsedTime() - jumpStartTime;
+  // Update X and Z position based on movement flags
+  if (moveForward) playerZ += moveSpeed;
+  if (moveBackward) playerZ -= moveSpeed;
+  if (moveLeft) playerX += moveSpeed;
+  if (moveRight) playerX -= moveSpeed;
 
-        // Calculate the current height based on kinematic equation
-        currentHeight = jumpVelocity * elapsedTime - 0.5 * gravity * Math.pow(elapsedTime, 2);
+  // Update Y position based on jump logic
+  if (isJumping) {
+      let elapsedTime = clock.getElapsedTime() - jumpStartTime;
+      let height = l+jumpVelocity*elapsedTime - GRAVITY * Math.pow(elapsedTime, 2) / 2;
 
-        // Stop the jump when the cube lands (height reaches zero or below)
-        if (currentHeight <= 0) {
-            currentHeight = 0;
-            isJumping = false;  // End the jump
-        }
+      // If the jump is complete (reached or below ground level)
+      if (height <= l) {
+          isJumping = false;
+          playerY = l;
+      } else {
+          playerY = height;
+      }
+  }
 
-        // Apply the calculated height to the cube’s position
-        cubes[0].matrix.identity(); // Reset matrix
-        cubes[0].matrix.multiply(translationMatrix(0, currentHeight, 0));
-    }
+  // Combine the separate transformations into one matrix
+
+  // Apply the transformations in sequence
+  let combinedMatrix = new THREE.Matrix4()
+      .multiply(translationMatrix(playerX, playerY, playerZ))
+
+  cubes[0].matrix.copy(combinedMatrix);
+  cubes[0].matrixAutoUpdate = false;
+
+  renderer.render(scene, camera);
 
     
 	renderer.render( scene, camera );
