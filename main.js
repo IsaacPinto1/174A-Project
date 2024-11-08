@@ -4,6 +4,61 @@ import { mx_bilerp_0 } from 'three/src/nodes/materialx/lib/mx_noise.js';
 import { PI } from 'three/webgpu';
 
 
+const CAMERA_POS_X = 0;
+const CAMERA_POS_Y = 0;
+const CAMERA_POS_Z = 10;
+
+const CAMERA_TARGET_X = 0;
+const CAMERA_TARGET_Y = 0;
+const CAMERA_TARGET_Z = 0;
+
+
+function translationMatrix(tx, ty, tz) {
+	return new THREE.Matrix4().set(
+		1, 0, 0, tx,
+		0, 1, 0, ty,
+		0, 0, 1, tz,
+		0, 0, 0, 1
+	);
+}
+
+function rotationMatrixX(theta) {
+    return new THREE.Matrix4().set(
+        1, 0, 0, 0,
+        0, Math.cos(theta), -Math.sin(theta), 0,
+        0, Math.sin(theta), Math.cos(theta), 0,
+        0, 0, 0, 1
+    );
+}
+
+function rotationMatrixY(theta) {
+    return new THREE.Matrix4().set(
+        Math.cos(theta), 0, Math.sin(theta), 0,
+        0, 1, 0, 0,
+        -Math.sin(theta), 0, Math.cos(theta), 0,
+        0, 0, 0, 1
+    );
+}
+
+function rotationMatrixZ(theta) {
+	return new THREE.Matrix4().set(
+		Math.cos(theta), -Math.sin(theta), 0, 0,
+		Math.sin(theta),  Math.cos(theta), 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1
+	);
+}
+
+function scalingMatrix(sx, sy, sz) {
+  return new THREE.Matrix4().set(
+    sx, 0, 0, 0,
+		0, sy, 0, 0,
+		0, 0, sz, 0,
+		0, 0, 0, 1
+  );
+}
+
+
 const scene = new THREE.Scene();
 
 //THREE.PerspectiveCamera( fov angle, aspect ratio, near depth, far depth );
@@ -14,8 +69,8 @@ renderer.setSize( window.innerWidth, window.innerHeight );
 document.body.appendChild( renderer.domElement );
 
 const controls = new OrbitControls(camera, renderer.domElement);
-camera.position.set(0, 5, 10);
-controls.target.set(0, 5, 0);
+camera.position.set(CAMERA_POS_X, CAMERA_POS_Y, CAMERA_POS_Z);
+controls.target.set(CAMERA_TARGET_X, CAMERA_TARGET_Y, CAMERA_TARGET_Z);
 
 // Rendering 3D axis
 const createAxisLine = (color, start, end) => {
@@ -31,8 +86,6 @@ scene.add(yAxis);
 scene.add(zAxis);
 
 
-// ***** Assignment 2 *****
-// Setting up the lights
 const pointLight = new THREE.PointLight(0xffffff, 100, 100);
 pointLight.position.set(5, 5, 5); // Position the light
 scene.add(pointLight);
@@ -229,41 +282,13 @@ const wireframe_geometry = new THREE.BufferGeometry();
 wireframe_geometry.setAttribute( 'position', new THREE.BufferAttribute( wireframe_vertices, 3 ) );
 
 
-// TODO: Implement wireframe geometry
 
 
-function translationMatrix(tx, ty, tz) {
-	return new THREE.Matrix4().set(
-		1, 0, 0, tx,
-		0, 1, 0, ty,
-		0, 0, 1, tz,
-		0, 0, 0, 1
-	);
-}
-
-function rotationMatrixZ(theta) {
-	return new THREE.Matrix4().set(
-    Math.cos(theta), -Math.sin(theta), 0, 0,
-    Math.sin(theta), Math.cos(theta), 0, 0,
-    0,              0,              1, 0,
-    0,              0,              0, 1,
-	);
-}
-
-function scalingMatrix(sx, sy, sz) {
-  return new THREE.Matrix4().set(
-    sx, 0, 0, 0,
-		0, sy, 0, 0,
-		0, 0, sz, 0,
-		0, 0, 0, 1
-  );
-}
-// TODO: Implement the other transformation functions.
 
 
 let cubes = [];
 let wires = [];
-const NUMB_CUBES = 7;
+const NUMB_CUBES = 1;
 for (let i = 0; i < NUMB_CUBES; i++) {
   let line = new THREE.LineSegments( wireframe_geometry );
 	let cube = new THREE.Mesh(custom_cube_geometry, phong_material);
@@ -276,20 +301,17 @@ for (let i = 0; i < NUMB_CUBES; i++) {
   scene.add(line);
 }
 
-// TODO: Transform cubes
 
-let animation_time = 0;
-let delta_animation_time;
-let rotation_angle;
+
 const clock = new THREE.Clock();
-
-const MAX_ANGLE = 20 * Math.PI/180; // 20 degrees converted to radians
-const T = 3 // oscilation persiod in seconds
-
-
-
+let isJumping = false;
+let jumpStartTime = 0;
+const gravity = 9.8;         // Custom gravity value, adjust as desired
+const jumpVelocity = 5;      // Initial jump velocity in units per second
+let currentHeight = 0;       // Current height of the cube
 let still = false;
-let wire_vis = false;
+
+
 window.addEventListener('keydown', onKeyPress); // onKeyPress is called each time a key is pressed
 // Function to handle keypress
 function onKeyPress(event) {
@@ -307,6 +329,13 @@ function onKeyPress(event) {
               wires[i].visible = !wires[i].visible;
               cubes[i].visible = !cubes[i].visible;
           }
+        case 'j': // Press 'j' to jump
+          if (!isJumping) {
+              isJumping = true;
+              jumpStartTime = clock.getElapsedTime();
+              currentHeight = 0; // Reset height to ground level
+          }
+          break;
 
         default:
             console.log(`Key ${event.key} pressed`);
@@ -314,42 +343,29 @@ function onKeyPress(event) {
 }
 
 function animate() {
+
+    if (isJumping) {
+        const elapsedTime = clock.getElapsedTime() - jumpStartTime;
+
+        // Calculate the current height based on kinematic equation
+        currentHeight = jumpVelocity * elapsedTime - 0.5 * gravity * Math.pow(elapsedTime, 2);
+
+        // Stop the jump when the cube lands (height reaches zero or below)
+        if (currentHeight <= 0) {
+            currentHeight = 0;
+            isJumping = false;  // End the jump
+        }
+
+        // Apply the calculated height to the cube’s position
+        cubes[0].matrix.identity(); // Reset matrix
+        cubes[0].matrix.multiply(translationMatrix(0, currentHeight, 0));
+    }
+
     
 	renderer.render( scene, camera );
-    controls.update();
+  controls.update();
 
-  delta_animation_time = clock.getDelta();
-  animation_time += delta_animation_time; 
-  if(still){
-    rotation_angle = MAX_ANGLE;
-  } else{
-    rotation_angle = MAX_ANGLE/2+(MAX_ANGLE/2)*Math.sin((2*Math.PI/T)*(animation_time+T/4));
-    delta_animation_time = clock.getDelta();
-    animation_time += delta_animation_time; 
-  };
 
-  const rotate = rotationMatrixZ(rotation_angle);
-  const sx = 1
-  const sy = 1.5
-  const sz = 1
-  const translation = translationMatrix(0, 2*l*sy, 0); // Translate 2l units in the y direction
-  const to_origin = translationMatrix(l, l*sy, 0);
-  //const rotate = rotationMatrixZ(Math.PI*20/180);
-  const back_to_start = translationMatrix(-l,-l*sy, 0);
-  const scale = scalingMatrix(sx, sy, sz)
-  let model_transformation = new THREE.Matrix4(); // model transformation matrix we will update
-  
-  // Apply transformations
-  model_transformation.multiplyMatrices(scale,model_transformation);
-  for (let i = 0; i < cubes.length; i++) {
-    cubes[i].matrix.identity().multiply(model_transformation)//.multiply(scale);
-    wires[i].matrix.identity().multiply(model_transformation)
-    //cubes[i].matrix.copy(model_transformation);
-    model_transformation.multiplyMatrices(to_origin,model_transformation);
-    model_transformation.multiplyMatrices(rotate,model_transformation);
-    model_transformation.multiplyMatrices(back_to_start,model_transformation);
-    model_transformation.multiplyMatrices(translation,model_transformation);
-  }
 
 }
 renderer.setAnimationLoop( animate );
