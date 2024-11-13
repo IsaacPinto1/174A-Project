@@ -12,7 +12,7 @@ const CAMERA_TARGET_Z = 0;
 
 // ---- Set Up Scene, Camera, Renderer ----
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87CEEB);
+scene.background = new THREE.Color(0x328dbf);
 
 // ---- Camera ----
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -32,21 +32,33 @@ controls.update();
 const ambientLight = new THREE.AmbientLight(0x505050);
 scene.add(ambientLight);
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
 directionalLight.position.set(5, 10, 5).normalize();
 scene.add(directionalLight);
 
-// ----   ----
-const INITIAL_VELOCITY = 0.15; 
+// ------------------------
+//          FINAL VALUES
+//-----------------------
+
+//---Physics---
 const GRAVITY = -0.004;         // Much weaker gravity for floating effect
 const WATER_RESISTANCE = 0.98;  // Slows down movement over time
+
+//---Player---
+const INITIAL_VELOCITY = 0.15; 
 const MOVEMENT_SPEED = 0.03;    // Slower horizontal movement for underwater feel
 const MAX_JUMPS = 3; // For mid-way jumps
+
+//---Objects------
+const OBSTACLE_VELOCITY = 0.1;
+const COIN_VELOCITY = 0.1;
+
+
 
 // ---- Tadpole (Player) Properties ----
 let playerX = 0;
 let playerY = 1;
-let playerZ = 0;
+let playerZ = 2;
 let velocityY = 0;
 let score = 0;
 let gameOn = true;
@@ -56,23 +68,50 @@ let jumpsRemaining = MAX_JUMPS;
 const scoreElement = document.getElementById('score');
 const gameOverElement = document.getElementById('gameOver');
 
+//-----Textures for ground-----------
+//NOTES: Add Sliding Floor Texture??
+const textureLoader = new THREE.TextureLoader();
+const groundBase = textureLoader.load('/images/Sand_007_basecolor.jpg');
+const groundNormal = textureLoader.load('/images/Sand_007_normal.jpg');
+
 // ---- Plane Geometry for Ground ----
-const groundGeometry = new THREE.PlaneGeometry(20, 20);
-const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+
+//GROUND
+const groundGeometry = new THREE.PlaneGeometry(20, 40);
+//const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
+const groundMaterial = new THREE.MeshStandardMaterial({ map: groundBase, normalMap: groundNormal });
 const floor = new THREE.Mesh(groundGeometry, groundMaterial);
 floor.rotation.x = -Math.PI / 2;
 floor.position.y = 0;
 scene.add(floor);
 
+//SideBanks
+const sideGeometry = new THREE.PlaneGeometry(20, 40);
+const leftBank = new THREE.Mesh(groundGeometry, groundMaterial);
+leftBank.rotation.x = -Math.PI / 2;
+leftBank.position.x =19;
+leftBank.rotation.y = -0.3; 
+leftBank.position.y = 3;
+scene.add(leftBank);
+
+const rightBank = new THREE.Mesh(groundGeometry, groundMaterial);
+rightBank.rotation.x = -Math.PI / 2;
+rightBank.position.x =-19;
+rightBank.rotation.y = 0.3; 
+rightBank.position.y = 3;
+scene.add(rightBank);
+
+
+
 // ---- Tadpole Geometry ----
 const tadpoleGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-const tadpoleMaterial = new THREE.MeshPhongMaterial({ color: 0xff11ff });
+const tadpoleMaterial = new THREE.MeshPhongMaterial({ color: 0x008719, specular: 0xFFFFFF, shininess: 10 });
 const tadpole = new THREE.Mesh(tadpoleGeometry, tadpoleMaterial);
 scene.add(tadpole);
 
 // ---- Coin Geometry ----
 const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700 });
+const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, specular: 0xFFFFFF, shininess: 200});
 let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
 scene.add(coin);
@@ -82,6 +121,40 @@ const obstacleGeometry = new THREE.BoxGeometry(15, 0.5, 0.5);
 const obstacleMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
 let obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
 scene.add(obstacle);
+//------Water fog---------
+scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
+const fogAmbientLight = new THREE.AmbientLight(0x334d5c, 0.6); // Soft blue ambient light
+scene.add(ambientLight);
+
+const fogDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+directionalLight.position.set(5, 10, 5);
+scene.add(directionalLight);
+
+//----Particles in water---
+
+const particleCount = 300;
+const particles = new THREE.BufferGeometry();
+const positions = new Float32Array(particleCount * 3);
+
+for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 20;  // X position
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 10; // Y position
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 20; // Z position
+}
+particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+const particleMaterial = new THREE.PointsMaterial({
+    color: 0x99ddee,
+    size: 0.1,
+    transparent: true,
+    opacity: 0.5,
+});
+const particleSystem = new THREE.Points(particles, particleMaterial);
+scene.add(particleSystem);
+
+
+
+
 
 // ---- Initial Spawn Positions ----
 const INITIAL_SPAWN_Z = -15;  // Fixed initial spawn Z position for objects
@@ -193,6 +266,21 @@ function restartGame() {
     tadpole.position.set(playerX, playerY, playerZ);
 }
 
+//------Animate Particles----
+function animateParticles() {
+    const positions = particleSystem.geometry.attributes.position.array;
+    for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] += (Math.random() - 0.5) * 0.01; // Random X movement
+        positions[i * 3 + 1] += (Math.random() - 0.5) * 0.01; // Random Y movement
+        positions[i * 3 + 2] += (Math.random() * 0.01 - 0.005) + OBSTACLE_VELOCITY;
+        if(positions[i * 3 + 2]>10){
+            positions[i * 3 + 2] = -10;
+        }
+    }
+    particleSystem.geometry.attributes.position.needsUpdate = true;
+}
+
+
 // ---- Main Animation Loop ----
 function animate() {
     requestAnimationFrame(animate);
@@ -218,8 +306,8 @@ function animate() {
     tadpole.position.set(playerX, playerY, playerZ);
 
     // Move objects
-    coin.position.z += 0.1;
-    obstacle.position.z += 0.1;
+    coin.position.z += COIN_VELOCITY;
+    obstacle.position.z += OBSTACLE_VELOCITY;
 
     // Check collisions
     if (checkCollision(coin)) {
@@ -236,6 +324,9 @@ function animate() {
     // Respawn objects when they pass the player
     if (coin.position.z > 5) respawnCoin();
     if (obstacle.position.z > 5) respawnObstacle();
+
+    //animate partcles
+    animateParticles()
 
     renderer.render(scene, camera);
 }
