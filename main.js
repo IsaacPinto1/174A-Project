@@ -52,6 +52,7 @@ const MAX_JUMPS = 3; // For mid-way jumps
 //---Objects------
 const OBSTACLE_VELOCITY = 0.1;
 const COIN_VELOCITY = 0.1;
+const GROUND_LENGTH = 40;
 
 
 
@@ -75,31 +76,37 @@ const groundBase = textureLoader.load('/images/Sand_007_basecolor.jpg');
 const groundNormal = textureLoader.load('/images/Sand_007_normal.jpg');
 
 // ---- Plane Geometry for Ground ----
-
-//GROUND
-const groundGeometry = new THREE.PlaneGeometry(20, 40);
+const groundObjects = []
+function setPosition(ground, yRotation, xPosition,yPosition, zPosition){ 
+    ground.rotation.x = -Math.PI / 2;
+    ground.rotation.y= yRotation;
+    ground.position.y = yPosition;
+    ground.position.x = xPosition;
+    ground.position.z = zPosition;
+    scene.add(ground)
+    groundObjects.push(ground)
+}
+//GROUND: two banks that move and reset when behind camera
+const groundGeometry = new THREE.PlaneGeometry(20, GROUND_LENGTH);
 //const groundMaterial = new THREE.MeshPhongMaterial({ color: 0x808080 });
 const groundMaterial = new THREE.MeshStandardMaterial({ map: groundBase, normalMap: groundNormal });
 const floor = new THREE.Mesh(groundGeometry, groundMaterial);
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = 0;
-scene.add(floor);
+setPosition(floor, 0, 0, 0,0)
+
+const floor2 = new THREE.Mesh(groundGeometry, groundMaterial);
+setPosition(floor2, 0, 0, 0, -1*GROUND_LENGTH)
 
 //SideBanks
-const sideGeometry = new THREE.PlaneGeometry(20, 40);
 const leftBank = new THREE.Mesh(groundGeometry, groundMaterial);
-leftBank.rotation.x = -Math.PI / 2;
-leftBank.position.x =19;
-leftBank.rotation.y = -0.3; 
-leftBank.position.y = 3;
-scene.add(leftBank);
+setPosition(leftBank, -0.3, 19, 3, 0)
+const left2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
+setPosition(left2Bank, -0.3, 19, 3,  -1*GROUND_LENGTH)
 
 const rightBank = new THREE.Mesh(groundGeometry, groundMaterial);
-rightBank.rotation.x = -Math.PI / 2;
-rightBank.position.x =-19;
-rightBank.rotation.y = 0.3; 
-rightBank.position.y = 3;
-scene.add(rightBank);
+setPosition(rightBank, 0.3, -19, 3, 0)
+const right2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
+setPosition(right2Bank, 0.3, -19, 3,  -1*GROUND_LENGTH)
+
 
 
 
@@ -280,6 +287,16 @@ function animateParticles() {
     particleSystem.geometry.attributes.position.needsUpdate = true;
 }
 
+//-----Animate ground----
+function animateGround() {
+    for( let i = 0; i< groundObjects.length; i++){
+        groundObjects[i].position.z += OBSTACLE_VELOCITY;
+        if(groundObjects[i].position.z > GROUND_LENGTH){
+            groundObjects[i].position.z = -1*GROUND_LENGTH;
+        }
+    }
+}
+
 
 // ---- Main Animation Loop ----
 function animate() {
@@ -327,6 +344,7 @@ function animate() {
 
     //animate partcles
     animateParticles()
+    animateGround()
 
     renderer.render(scene, camera);
 }
