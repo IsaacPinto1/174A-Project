@@ -75,6 +75,8 @@ const textureLoader = new THREE.TextureLoader();
 const groundBase = textureLoader.load('/images/Sand_007_basecolor.jpg');
 const groundNormal = textureLoader.load('/images/Sand_007_normal.jpg');
 
+const logSideTexture = textureLoader.load('/images/wood_texture.jpg');
+const logTipTexture = textureLoader.load('images/log_tip.jpg');
 // ---- Plane Geometry for Ground ----
 const groundObjects = []
 function setPosition(ground, yRotation, xPosition,yPosition, zPosition){ 
@@ -108,26 +110,76 @@ const right2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(right2Bank, 0.3, -19, 3,  -1*GROUND_LENGTH)
 
 
-
-
 // ---- Tadpole Geometry ----
-const tadpoleGeometry = new THREE.SphereGeometry(0.5, 16, 16);
-const tadpoleMaterial = new THREE.MeshPhongMaterial({ color: 0x008719, specular: 0xFFFFFF, shininess: 10 });
-const tadpole = new THREE.Mesh(tadpoleGeometry, tadpoleMaterial);
+const tadpole = new THREE.Group(); 
+
+const headGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+const headMaterial = new THREE.MeshPhongMaterial({ 
+  color: 0x93DC5C });
+
+const head = new THREE.Mesh(headGeometry, headMaterial);
+
+
+// Eye 
+const eyeGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+const eyeMaterial = new THREE.MeshPhongMaterial({ 
+  color: 0xffffff });
+
+const leftEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+const rightEye = new THREE.Mesh(eyeGeometry, eyeMaterial);
+
+leftEye.position.set(0.2, 0.15, -0.1);
+rightEye.position.set(-0.2, 0.15, -0.1);
+
+// Pupil 
+const pupilGeometry = new THREE.SphereGeometry(0.1 , 16, 16);
+const pupilMaterial = new THREE.MeshPhongMaterial({ 
+  color: 0x010101 });
+const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
+leftPupil.position.set(0, 0, -0.02);
+rightPupil.position.set(0,0, -0.02);
+
+leftEye.add(leftPupil);
+rightEye.add(rightPupil);
+
+// Tail 
+const tailGeometry = new THREE.CylinderGeometry(0.05, 0.15, 1.5, 16, 1); 
+const tailMaterial = new THREE.MeshPhongMaterial({ color: 0x93DC5C });
+const tail = new THREE.Mesh(tailGeometry, tailMaterial);
+tail.position.set(0, 0, 0.7); 
+tail.rotation.x = Math.PI / 2;   
+
+head.add(leftEye);
+head.add(rightEye);
+head.add(tail);
+
+tadpole.add(head);
+
 scene.add(tadpole);
 
-// ---- Coin Geometry ----
+// ---- Coin  ----
 const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
 const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, specular: 0xFFFFFF, shininess: 200});
 let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
 scene.add(coin);
 
-// ---- Obstacle Geometry ----
-const obstacleGeometry = new THREE.BoxGeometry(15, 0.5, 0.5);
-const obstacleMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
-let obstacle = new THREE.Mesh(obstacleGeometry, obstacleMaterial);
+// ---- Obstacle Texture ----
+logSideTexture.wrapS = THREE.RepeatWrapping; //Horizontal Wrap
+logSideTexture.wrapT = THREE.RepeatWrapping;
+logSideTexture.repeat.set(2, 10);
+
+// ---- Obstacle ----
+const obstacleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 32);
+
+const endObstacleMaterial = new THREE.MeshPhongMaterial({ map: logTipTexture});
+const sideObstacleMaterial = new THREE.MeshPhongMaterial({map: logSideTexture});
+let obstacle = new THREE.Mesh(obstacleGeometry, [sideObstacleMaterial, endObstacleMaterial, endObstacleMaterial]);
+obstacle.rotation.z = Math.PI / 2;
+
 scene.add(obstacle);
+
 //------Water fog---------
 scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
 const fogAmbientLight = new THREE.AmbientLight(0x334d5c, 0.6); // Soft blue ambient light
@@ -158,8 +210,6 @@ const particleMaterial = new THREE.PointsMaterial({
 });
 const particleSystem = new THREE.Points(particles, particleMaterial);
 scene.add(particleSystem);
-
-
 
 
 
