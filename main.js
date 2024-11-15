@@ -37,7 +37,7 @@ directionalLight.position.set(5, 10, 5).normalize();
 scene.add(directionalLight);
 
 // ------------------------
-//          FINAL VALUES
+//          Game/physics VALUES
 //-----------------------
 
 //---Physics---
@@ -46,14 +46,18 @@ const WATER_RESISTANCE = 0.98;  // Slows down movement over time
 
 //---Player---
 const INITIAL_VELOCITY = 0.15; 
-const MOVEMENT_SPEED = 0.03;    // Slower horizontal movement for underwater feel
+const MOVEMENT_SPEED = 0.05;    // Slower horizontal movement for underwater feel
 const MAX_JUMPS = 3; // For mid-way jumps
 
 //---Objects------
-const OBSTACLE_VELOCITY = 0.1;
+const STARTING_OBSTACLE_VELOCITY = 0.10;
+let obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
 const COIN_VELOCITY = 0.1;
 const GROUND_LENGTH = 40;
 
+// ---- Game Variables ----
+let stage = 1;
+let movingLog = false;
 
 
 // ---- Tadpole (Player) Properties ----
@@ -67,6 +71,7 @@ let jumpsRemaining = MAX_JUMPS;
 
 // ---- Get Score and Game Over Elements ----
 const scoreElement = document.getElementById('score');
+const stageElement = document.getElementById('stage');
 const gameOverElement = document.getElementById('gameOver');
 
 //-----Textures for ground-----------
@@ -96,18 +101,18 @@ const floor = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(floor, 0, 0, 0,0)
 
 const floor2 = new THREE.Mesh(groundGeometry, groundMaterial);
-setPosition(floor2, 0, 0, 0, -1*GROUND_LENGTH)
+setPosition(floor2, 0, 0, 0, -1*GROUND_LENGTH + 2* obstacle_velocity)
 
 //SideBanks
 const leftBank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(leftBank, -0.3, 19, 3, 0)
 const left2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
-setPosition(left2Bank, -0.3, 19, 3,  -1*GROUND_LENGTH)
+setPosition(left2Bank, -0.3, 19, 3,  -1*GROUND_LENGTH + 2*obstacle_velocity)
 
 const rightBank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(rightBank, 0.3, -19, 3, 0)
 const right2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
-setPosition(right2Bank, 0.3, -19, 3,  -1*GROUND_LENGTH)
+setPosition(right2Bank, 0.3, -19, 3,  -1*GROUND_LENGTH + 2*obstacle_velocity)
 
 
 // ---- Tadpole Geometry ----
@@ -307,14 +312,18 @@ function checkCollision(obj) {
 // ---- Restart Game Function ----
 function restartGame() {
     score = 0;
+    stage = 1;
     playerX = 0;
     playerY = 1;
     velocityY = 0;
     jumpsRemaining = MAX_JUMPS;
     gameOn = true;
+    obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
+    movingLog = false;
     
     gameOverElement.style.display = 'none';
     scoreElement.innerHTML = `Score: ${score}`;
+    stageElement.innerHTML = `Stage: ${stage}`;
     
     // Reset object positions with fixed Z values
     respawnCoin();
@@ -329,7 +338,7 @@ function animateParticles() {
     for (let i = 0; i < particleCount; i++) {
         positions[i * 3] += (Math.random() - 0.5) * 0.01; // Random X movement
         positions[i * 3 + 1] += (Math.random() - 0.5) * 0.01; // Random Y movement
-        positions[i * 3 + 2] += (Math.random() * 0.01 - 0.005) + OBSTACLE_VELOCITY;
+        positions[i * 3 + 2] += (Math.random() * 0.01 - 0.005) + obstacle_velocity;
         if(positions[i * 3 + 2]>10){
             positions[i * 3 + 2] = -10;
         }
@@ -340,11 +349,19 @@ function animateParticles() {
 //-----Animate ground----
 function animateGround() {
     for( let i = 0; i< groundObjects.length; i++){
-        groundObjects[i].position.z += OBSTACLE_VELOCITY;
-        if(groundObjects[i].position.z > GROUND_LENGTH){
-            groundObjects[i].position.z = -1*GROUND_LENGTH;
+        groundObjects[i].position.z += obstacle_velocity;
+        if(groundObjects[i].position.z >= GROUND_LENGTH){
+            groundObjects[i].position.z = -1*GROUND_LENGTH + 3.5*obstacle_velocity;
         }
     }
+}
+let speed = obstacle_velocity*0.4;
+function animateLog(){
+    //change 0.5 to log radius
+    if(obstacle.position.y >= 5 || obstacle.position.y <= 0.5){
+        speed = -1 * speed;
+    }
+    obstacle.position.y += speed;
 }
 
 
@@ -373,12 +390,25 @@ function animate() {
     tadpole.position.set(playerX, playerY, playerZ);
 
     // Move objects
-    coin.position.z += COIN_VELOCITY;
-    obstacle.position.z += OBSTACLE_VELOCITY;
+    coin.position.z += obstacle_velocity;// COIN_VELOCITY;
+    obstacle.position.z += obstacle_velocity;
+
+    if(movingLog){
+        animateLog()
+    }
 
     // Check collisions
     if (checkCollision(coin)) {
         score += 10;
+        if(score%50 == 0){
+            stage +=1;
+            stageElement.innerHTML = `Stage: ${stage}`;
+            obstacle_velocity = obstacle_velocity + 0.02;
+            speed= obstacle_velocity*0.4;
+        }
+        if(score > 150){
+            movingLog = true;
+        }
         scoreElement.innerHTML = `Score: ${score}`;
         respawnCoin();
     }
