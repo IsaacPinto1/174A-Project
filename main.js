@@ -277,11 +277,19 @@ function respawnCoin() {
 }
 
 function respawnObstacle() {
-    obstacle.position.set(
-        (Math.random() - 0.5) * 10,  // Random X position
-        1,                           // Fixed Y position
-        INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
-    );
+    if(!movingLog){
+        obstacle.position.set(
+            (Math.random() - 0.5) * 10,  // Random X position
+            1,                           // Fixed Y position
+            INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
+        );
+    } else{
+        obstacle.position.set(
+            (Math.random() - 0.5) * 10,  // Random X position
+            Math.random()*(5-0.5)+0.5,                           // Fixed Y position
+            INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
+        );
+    }
 }
 
 // ---- Check for Collision with Tadpole ----
@@ -423,8 +431,8 @@ function animate() {
     }
 
     // Respawn objects when they pass the player
-    if (coin.position.z > 5) respawnCoin();
-    if (obstacle.position.z > 5) respawnObstacle();
+    if (coin.position.z > 10) respawnCoin();
+    if (obstacle.position.z > 10) respawnObstacle();
 
     //animate partcles
     animateParticles()
