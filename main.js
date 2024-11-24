@@ -83,6 +83,8 @@ const groundNormal = textureLoader.load('/images/Sand_007_normal.jpg');
 
 const logSideTexture = textureLoader.load('/images/wood_texture.jpg');
 const logTipTexture = textureLoader.load('images/log_tip.jpg');
+
+const coinTexture = textureLoader.load('images/coin.jpg');
 // ---- Plane Geometry for Ground ----
 const groundObjects = []
 function setPosition(ground, yRotation, xPosition,yPosition, zPosition){ 
@@ -166,7 +168,8 @@ scene.add(tadpole);
 
 // ---- Coin  ----
 const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, specular: 0xFFFFFF, shininess: 200});
+//const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, specular: 0xFFFFFF, shininess: 200});
+const coinMaterial = new THREE.MeshPhongMaterial({map: coinTexture});
 let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
 scene.add(coin);
