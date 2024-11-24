@@ -296,6 +296,7 @@ function respawnToken(obj) {
 }
 
 function respawnObstacle() {
+    obstacle.visible = true;
     if(!movingLog){
         obstacle.position.set(
             (Math.random() - 0.5) * 10,  // Random X position
@@ -376,6 +377,8 @@ function animateParticles() {
     }
     particleSystem.geometry.attributes.position.needsUpdate = true;
 }
+
+
 
 //-----Animate ground----
 function animateGround() {
@@ -471,9 +474,14 @@ function animate() {
         }
     }
 
-    if ((checkCollision(obstacle) && !poweredUP) || playerY <= 0.5) {
-        gameOn = false;
-        gameOverElement.style.display = 'block';
+
+    if (checkCollision(obstacle)|| playerY <= 0.5) {
+        if(!poweredUP){
+            gameOn = false;
+            gameOverElement.style.display = 'block';
+        } else{
+            obstacle.visible = false;
+        }
     }
 
     // Respawn objects when they pass the player
