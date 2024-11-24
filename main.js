@@ -406,7 +406,7 @@ function animate() {
             obstacle_velocity = obstacle_velocity + 0.02;
             speed= obstacle_velocity*0.4;
         }
-        if(score > 150){
+        if(score > 99){
             movingLog = true;
         }
         scoreElement.innerHTML = `Score: ${score}`;
