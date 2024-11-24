@@ -54,11 +54,14 @@ const MAX_JUMPS = 3; // For mid-way jumps
 const STARTING_OBSTACLE_VELOCITY = 0.10;
 let obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
 const COIN_VELOCITY = 0.1;
+const PUP_VELOCITY = 0.05
 const GROUND_LENGTH = 40;
 
 // ---- Game Variables ----
 let stage = 1;
 let movingLog = false;
+let poweredUP = false;
+let poweredUPStart = null;
 
 
 // ---- Tadpole (Player) Properties ----
@@ -74,6 +77,7 @@ let jumpsRemaining = MAX_JUMPS;
 const scoreElement = document.getElementById('score');
 const stageElement = document.getElementById('stage');
 const gameOverElement = document.getElementById('gameOver');
+const powerElement = document.getElementById('power');
 
 //-----Textures for ground-----------
 //NOTES: Add Sliding Floor Texture??
@@ -174,6 +178,16 @@ let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
 scene.add(coin);
 
+
+// ---- Power-up ----
+const pUPGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
+const pUPMaterial = new THREE.MeshPhongMaterial({ color: 0xFF0000, specular: 0xFFFFFF, shininess: 200});
+let pUP = new THREE.Mesh(pUPGeometry, pUPMaterial);
+pUP.rotation.x = Math.PI / 2;
+pUP.position.z = 15;
+scene.add(pUP);
+
+
 // ---- Obstacle Texture ----
 logSideTexture.wrapS = THREE.RepeatWrapping; //Horizontal Wrap
 logSideTexture.wrapT = THREE.RepeatWrapping;
@@ -271,11 +285,13 @@ window.addEventListener('keyup', (event) => {
 });
 
 // ---- Respawn Functions with Fixed Z Position ----
-function respawnCoin() {
-    coin.position.set(
+function respawnToken(obj) {
+
+    let zspawn = -(Math.random()*(17-13)+13);
+    obj.position.set(
         (Math.random() - 0.5) * 10,  // Random X position
         1,                           // Fixed Y position
-        INITIAL_SPAWN_Z              // Fixed initial Z position
+        zspawn              // Fixed initial Z position
     );
 }
 
@@ -297,7 +313,7 @@ function respawnObstacle() {
 
 // ---- Check for Collision with Tadpole ----
 function checkCollision(obj) {
-  if (obj === coin) {
+  if (obj === coin || obj === pUP) {
       // For coin, keep using sphere collision (distance-based)
       const distance = tadpole.position.distanceTo(obj.position);
       return distance < 0.6;
@@ -323,23 +339,26 @@ function checkCollision(obj) {
 }
 // ---- Restart Game Function ----
 function restartGame() {
-    score = 0;
+    score = 90;
     stage = 1;
     playerX = 0;
     playerY = 1;
     velocityY = 0;
     jumpsRemaining = MAX_JUMPS;
     gameOn = true;
+    poweredUP = false;
     obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
     movingLog = false;
     
     gameOverElement.style.display = 'none';
+    powerElement.style.display = 'none';
     scoreElement.innerHTML = `Score: ${score}`;
     stageElement.innerHTML = `Stage: ${stage}`;
     
     // Reset object positions with fixed Z values
-    respawnCoin();
+    respawnToken(coin);
     respawnObstacle();
+    pUP.position.z = 15;
     
     tadpole.position.set(playerX, playerY, playerZ);
 }
@@ -406,6 +425,10 @@ function animate() {
     // Move objects
     coin.position.z += obstacle_velocity;// COIN_VELOCITY;
     coin.rotation.z = time% 2*Math.PI;
+    
+    pUP.position.z += PUP_VELOCITY // PUP_VELOCITY;
+    pUP.rotation.z = (time+1.234)%2*Math.PI;
+
     obstacle.position.z += obstacle_velocity;
 
     if(movingLog){
@@ -424,17 +447,37 @@ function animate() {
         if(score > 99){
             movingLog = true;
         }
+        if(score % 100 == 0){
+            respawnToken(pUP);
+        }
         scoreElement.innerHTML = `Score: ${score}`;
-        respawnCoin();
+        respawnToken(coin);
     }
 
-    if (checkCollision(obstacle) || playerY <= 0.5) {
+    if (checkCollision(pUP)){
+        poweredUP = true;
+        poweredUPStart = time;
+        pUP.position.z = 15;
+    }
+
+    if (poweredUP){
+        powerElement.style.display = 'block'
+        let timeLeft = Math.ceil(poweredUPStart+10-time)
+        powerElement.innerHTML = `Power Up: ${timeLeft}`;
+        console.log(poweredUP);
+        if(time-poweredUPStart >= 10){
+            poweredUP = false;
+            powerElement.style.display = 'none'
+        }
+    }
+
+    if ((checkCollision(obstacle) && !poweredUP) || playerY <= 0.5) {
         gameOn = false;
         gameOverElement.style.display = 'block';
     }
 
     // Respawn objects when they pass the player
-    if (coin.position.z > 10) respawnCoin();
+    if (coin.position.z > 10) respawnToken(coin);
     if (obstacle.position.z > 10) respawnObstacle();
 
     //animate partcles
@@ -445,6 +488,6 @@ function animate() {
 }
 
 // ---- Initial Setup ----
-respawnCoin();    // Initial coin spawn
+respawnToken(coin);    // Initial coin spawn
 respawnObstacle(); // Initial obstacle spawn
 animate();        // Start game loop
