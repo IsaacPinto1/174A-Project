@@ -13,6 +13,7 @@ const CAMERA_TARGET_Z = 0;
 // ---- Set Up Scene, Camera, Renderer ----
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x328dbf);
+let clock = new THREE.Clock();
 
 // ---- Camera ----
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 100);
@@ -370,6 +371,8 @@ function animate() {
     requestAnimationFrame(animate);
     if (!gameOn) return;
 
+    let time = clock.getElapsedTime();
+
     // Apply underwater movement physics
     if (moveLeft) playerX -= MOVEMENT_SPEED;
     if (moveRight) playerX += MOVEMENT_SPEED;
@@ -391,6 +394,7 @@ function animate() {
 
     // Move objects
     coin.position.z += obstacle_velocity;// COIN_VELOCITY;
+    coin.rotation.z = time% 2*Math.PI;
     obstacle.position.z += obstacle_velocity;
 
     if(movingLog){
