@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { Audio, AudioLoader, AudioListener } from 'three';
 
 // ---- Camera Position and Target ----
 const CAMERA_POS_X = 0;
@@ -36,6 +37,58 @@ scene.add(ambientLight);
 const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
 directionalLight.position.set(5, 10, 5).normalize();
 scene.add(directionalLight);
+
+// ---- Audio Listener ----
+const listener = new AudioListener();
+camera.add(listener);
+
+// ------------------------
+//          Sounds
+//-----------------------
+const audioLoader = new AudioLoader();
+
+const bgSound = new Audio(listener);
+audioLoader.load('/sounds/bg.mp3', (buffer) => {
+    bgSound.setBuffer(buffer);
+    bgSound.setLoop(false);
+    bgSound.setVolume(0.5);
+    bgSound.play();
+});
+
+const coinSound = new Audio(listener);
+audioLoader.load('/sounds/coin-2.mp3', (buffer) => {
+    coinSound.setBuffer(buffer);
+    coinSound.setLoop(false);
+    coinSound.setVolume(0.5);
+});
+
+const powerUpSound = new Audio(listener);
+audioLoader.load('/sounds/powerUp.mp3', (buffer) => {
+    powerUpSound.setBuffer(buffer);
+    powerUpSound.setLoop(false);
+    powerUpSound.setVolume(0.7);
+});
+
+const gameOverSound = new Audio(listener);
+audioLoader.load('/sounds/gameOver.mp3', (buffer) => {
+    gameOverSound.setBuffer(buffer);
+    gameOverSound.setLoop(false);
+    gameOverSound.setVolume(0.8);
+});
+
+const logBreakSound = new Audio(listener);
+audioLoader.load('/sounds/logBreak.mp3', (buffer) => {
+    logBreakSound.setBuffer(buffer);
+    logBreakSound.setLoop(false);
+    logBreakSound.setVolume(0.5);
+});
+
+function playSound(sound) {
+  if (sound.isPlaying) {
+      sound.stop();
+  }
+  sound.play();
+}
 
 // ------------------------
 //          Game/physics VALUES
@@ -362,6 +415,11 @@ function restartGame() {
     pUP.position.z = 15;
     
     tadpole.position.set(playerX, playerY, playerZ);
+
+    //Restart Background Music if ended
+    if (!bgSound.isPlaying) {
+      bgSound.play();
+    }
 }
 
 //------Animate Particles----
@@ -441,6 +499,7 @@ function animate() {
     // Check collisions
     if (checkCollision(coin)) {
         score += 10;
+        playSound(coinSound);
         if(score%50 == 0){
             stage +=1;
             stageElement.innerHTML = `Stage: ${stage}`;
@@ -461,6 +520,7 @@ function animate() {
         poweredUP = true;
         poweredUPStart = time;
         pUP.position.z = 15;
+        playSound(powerUpSound);
     }
 
     if (poweredUP){
@@ -479,8 +539,20 @@ function animate() {
         if(!poweredUP){
             gameOn = false;
             gameOverElement.style.display = 'block';
+            playSound(gameOverSound);
+
+
+          // Stop background music
+          if (bgSound.isPlaying) {
+            bgSound.stop();
+          }
         } else{
             obstacle.visible = false;
+
+            // Log Breaking Sound
+            if (!logBreakSound.isPlaying) {
+              playSound(logBreakSound, 1000); //1 sec only
+            }
         }
     }
 
