@@ -187,6 +187,15 @@ pUP.position.z = 15;
 scene.add(pUP);
 
 
+//------Water fog---------
+scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
+const fogAmbientLight = new THREE.AmbientLight(0x334d5c, 0.6); // Soft blue ambient light
+scene.add(ambientLight);
+
+const fogDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
+directionalLight.position.set(5, 10, 5);
+scene.add(directionalLight);
+
 // ---- Obstacle Texture ----
 logSideTexture.wrapS = THREE.RepeatWrapping; //Horizontal Wrap
 logSideTexture.wrapT = THREE.RepeatWrapping;
@@ -197,9 +206,15 @@ logSideTexture.repeat.set(2, 10);
 // Custom ShaderMaterial for the side of the log
 const logSideMaterial = new THREE.ShaderMaterial({
     uniforms: {
-        uTime: { value: 0.0 }, // Time for animation
-        uDissolveProgress: { value: 0.0 }, // Controls dissolve
-        uTexture: { value: logSideTexture }, // Log texture
+        uTime: { value: 0.0 },
+        uDissolveProgress: { value: 0.0 },
+        uTexture: { value: logSideTexture },
+        
+        // Pass scene fog parameters to the shader
+        fogColor: { value: new THREE.Color() }, // Scene fog color
+        fogNear: { value: 1.0 }, // Scene fog near distance
+        fogFar: { value: 100.0 }, // Scene fog far distance
+        fogDensity: { value: 0.05 }, // Scene fog density
     },
     vertexShader: `
         uniform float uTime;
@@ -207,6 +222,7 @@ const logSideMaterial = new THREE.ShaderMaterial({
 
         varying vec3 vPosition;
         varying vec2 vUv;
+        varying float vFogDepth;
 
         // Simple noise function
         float random(vec3 p) {
@@ -214,52 +230,76 @@ const logSideMaterial = new THREE.ShaderMaterial({
         }
 
         void main() {
-            // Pass UVs to fragment shader
             vUv = uv;
-
-            // Pass position to fragment shader
             vPosition = position;
 
-            // Calculate noise-based displacement
+            // Noise-based displacement
             float noise = random(position * 2.0 + uTime);
             float dissolveEffect = smoothstep(0.0, 1.0, uDissolveProgress);
-
-            // Push vertices outward
             vec3 newPosition = position + normal * noise * dissolveEffect;
 
-            // Apply model matrix transformations
+            // Fog depth calculation
+            vFogDepth = length(modelViewMatrix * vec4(newPosition, 1.0));
+
             gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
         }
     `,
     fragmentShader: `
         uniform float uDissolveProgress;
         uniform sampler2D uTexture;
+        uniform vec3 fogColor;
+        uniform float fogNear;
+        uniform float fogFar;
+        uniform float fogDensity;
 
         varying vec3 vPosition;
         varying vec2 vUv;
+        varying float vFogDepth;
 
-        // Simple noise function
         float random(vec3 p) {
             return fract(sin(dot(p.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
         }
 
-        void main() {
-            // Generate noise value
-            float noise = random(vPosition);
+        float getFogFactor(float depth) {
+            float fogFactor;
+            if (fogDensity > 0.0) {
+                // Exponential fog
+                fogFactor = exp(-fogDensity * depth);
+                return clamp(fogFactor, 0.0, 1.0);
+            } else {
+                // Linear fog
+                fogFactor = smoothstep(fogNear, fogFar, depth);
+                return fogFactor;
+            }
+        }
 
-            // Dissolve based on progress
+        void main() {
+            float noise = random(vPosition);
             if (noise < uDissolveProgress) {
-                discard; // Remove fragment
+                discard;
             }
 
-            // Sample the log texture
             vec4 textureColor = texture2D(uTexture, vUv);
+            float fogFactor = getFogFactor(vFogDepth);
 
-            // Output the texture color
-            gl_FragColor = textureColor;
+            // Mix texture color with scene fog color
+            vec4 finalColor = mix(vec4(fogColor, 1.0), textureColor, fogFactor);
+
+            gl_FragColor = finalColor;
         }
     `,
 });
+
+// Update uniforms with the scene’s fog parameters
+logSideMaterial.uniforms.fogColor.value = scene.fog.color;
+logSideMaterial.uniforms.fogNear.value = scene.fog.near;
+logSideMaterial.uniforms.fogFar.value = scene.fog.far;
+
+if (scene.fog instanceof THREE.FogExp2) {
+    logSideMaterial.uniforms.fogDensity.value = scene.fog.density;
+} else {
+    logSideMaterial.uniforms.fogDensity.value = 0.035; // No density if it's linear fog
+}
 
 // Use the original CylinderGeometry
 const obstacleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 32);
@@ -273,15 +313,6 @@ const obstacle = new THREE.Mesh(obstacleGeometry, [
 
 obstacle.rotation.z = Math.PI / 2;
 scene.add(obstacle);
-
-//------Water fog---------
-scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
-const fogAmbientLight = new THREE.AmbientLight(0x334d5c, 0.6); // Soft blue ambient light
-scene.add(ambientLight);
-
-const fogDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-directionalLight.position.set(5, 10, 5);
-scene.add(directionalLight);
 
 //----Particles in water---
 
@@ -333,9 +364,6 @@ window.addEventListener('keydown', (event) => {
                   jumpsRemaining--;
               }
               break;
-          case 'k':
-            dissolving = true;
-            break;
       }
   } else {
       // Only allow restart when game is over
@@ -416,7 +444,7 @@ function checkCollision(obj) {
 }
 // ---- Restart Game Function ----
 function restartGame() {
-    score = 0;
+    score = 90;
     stage = 1;
     playerX = 0;
     playerY = 1;
@@ -571,7 +599,7 @@ function animate() {
             gameOn = false;
             gameOverElement.style.display = 'block';
         } else{
-            obstacle.visible = false;
+            dissolving = true;
         }
     }
 
