@@ -172,7 +172,6 @@ scene.add(tadpole);
 
 // ---- Coin  ----
 const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-//const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, specular: 0xFFFFFF, shininess: 200});
 const coinMaterial = new THREE.MeshPhongMaterial({map: coinTexture});
 let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
@@ -194,13 +193,85 @@ logSideTexture.wrapT = THREE.RepeatWrapping;
 logSideTexture.repeat.set(2, 10);
 
 // ---- Obstacle ----
+
+// Custom ShaderMaterial for the side of the log
+const logSideMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        uTime: { value: 0.0 }, // Time for animation
+        uDissolveProgress: { value: 0.0 }, // Controls dissolve
+        uTexture: { value: logSideTexture }, // Log texture
+    },
+    vertexShader: `
+        uniform float uTime;
+        uniform float uDissolveProgress;
+
+        varying vec3 vPosition;
+        varying vec2 vUv;
+
+        // Simple noise function
+        float random(vec3 p) {
+            return fract(sin(dot(p.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+        }
+
+        void main() {
+            // Pass UVs to fragment shader
+            vUv = uv;
+
+            // Pass position to fragment shader
+            vPosition = position;
+
+            // Calculate noise-based displacement
+            float noise = random(position * 2.0 + uTime);
+            float dissolveEffect = smoothstep(0.0, 1.0, uDissolveProgress);
+
+            // Push vertices outward
+            vec3 newPosition = position + normal * noise * dissolveEffect;
+
+            // Apply model matrix transformations
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float uDissolveProgress;
+        uniform sampler2D uTexture;
+
+        varying vec3 vPosition;
+        varying vec2 vUv;
+
+        // Simple noise function
+        float random(vec3 p) {
+            return fract(sin(dot(p.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+        }
+
+        void main() {
+            // Generate noise value
+            float noise = random(vPosition);
+
+            // Dissolve based on progress
+            if (noise < uDissolveProgress) {
+                discard; // Remove fragment
+            }
+
+            // Sample the log texture
+            vec4 textureColor = texture2D(uTexture, vUv);
+
+            // Output the texture color
+            gl_FragColor = textureColor;
+        }
+    `,
+});
+
+// Use the original CylinderGeometry
 const obstacleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 32);
 
-const endObstacleMaterial = new THREE.MeshPhongMaterial({ map: logTipTexture});
-const sideObstacleMaterial = new THREE.MeshPhongMaterial({map: logSideTexture});
-let obstacle = new THREE.Mesh(obstacleGeometry, [sideObstacleMaterial, endObstacleMaterial, endObstacleMaterial]);
-obstacle.rotation.z = Math.PI / 2;
+// Apply textures to the cylinder
+const obstacle = new THREE.Mesh(obstacleGeometry, [
+    logSideMaterial, // Side material with shader
+    new THREE.MeshPhongMaterial({ map: logTipTexture }), // Ends with texture
+    new THREE.MeshPhongMaterial({ map: logTipTexture }), // Ends with texture
+]);
 
+obstacle.rotation.z = Math.PI / 2;
 scene.add(obstacle);
 
 //------Water fog---------
@@ -262,6 +333,9 @@ window.addEventListener('keydown', (event) => {
                   jumpsRemaining--;
               }
               break;
+          case 'k':
+            dissolving = true;
+            break;
       }
   } else {
       // Only allow restart when game is over
@@ -297,6 +371,8 @@ function respawnToken(obj) {
 
 function respawnObstacle() {
     obstacle.visible = true;
+    dissolving = false;
+    dissolveProgress = 0.0;
     if(!movingLog){
         obstacle.position.set(
             (Math.random() - 0.5) * 10,  // Random X position
@@ -399,6 +475,11 @@ function animateLog(){
 }
 
 
+let dissolveProgress = 0.0;
+let dissolving = false;
+
+
+
 // ---- Main Animation Loop ----
 function animate() {
     requestAnimationFrame(animate);
@@ -421,6 +502,17 @@ function animate() {
         velocityY = 0;
         jumpsRemaining = MAX_JUMPS;
     }
+
+    if(dissolveProgress < 1.0 && dissolving){
+        dissolveProgress += 0.08; // Increment dissolve
+        if (dissolveProgress >= 1.0){
+            dissolving = false;
+        }
+        //if (dissolveProgress > 1.0) dissolveProgress = 0.0; // Reset
+
+    }
+    logSideMaterial.uniforms.uTime.value += 0.05; // Update time
+    logSideMaterial.uniforms.uDissolveProgress.value = dissolveProgress;
 
     // Update tadpole position
     tadpole.position.set(playerX, playerY, playerZ);
@@ -467,7 +559,6 @@ function animate() {
         powerElement.style.display = 'block'
         let timeLeft = Math.ceil(poweredUPStart+10-time)
         powerElement.innerHTML = `Power Up: ${timeLeft}`;
-        console.log(poweredUP);
         if(time-poweredUPStart >= 10){
             poweredUP = false;
             powerElement.style.display = 'none'
