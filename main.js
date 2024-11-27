@@ -444,7 +444,7 @@ function checkCollision(obj) {
 }
 // ---- Restart Game Function ----
 function restartGame() {
-    score = 90;
+    score = 0;
     stage = 1;
     playerX = 0;
     playerY = 1;
