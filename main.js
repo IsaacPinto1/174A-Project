@@ -203,7 +203,7 @@ const pupilMaterial = new THREE.MeshPhongMaterial({
 const leftPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
 const rightPupil = new THREE.Mesh(pupilGeometry, pupilMaterial);
 leftPupil.position.set(0, 0, -0.02);
-rightPupil.position.set(0,0, -0.02);
+rightPupil.position.set(0, 0, -0.02);
 
 leftEye.add(leftPupil);
 rightEye.add(rightPupil);
@@ -337,6 +337,58 @@ window.addEventListener('keyup', (event) => {
   }
 });
 
+// ---- TadPole Body Animate ----
+function animateTail(time) {
+  const tailWagSpeed = 8; // Faster wagging
+  const tailWagAmplitude = 0.4; // More pronounced wagging
+  tail.rotation.y = Math.sin(time * tailWagSpeed) * tailWagAmplitude;
+  tail.rotation.z = Math.cos(time * tailWagSpeed) * 0.1; // Slight Z-axis twist
+}
+
+
+function animateBody(time) {
+  const bodyWaveSpeed = 8; // Match the tail speed
+  const bodyWaveAmplitude = 0.15; // Subtle sway
+
+  // Rotate the head in the opposite direction of the tail
+  head.rotation.y = -Math.sin(time * bodyWaveSpeed) * bodyWaveAmplitude;
+
+  // Slight tilt for the entire tadpole
+  tadpole.rotation.y = Math.sin(time * bodyWaveSpeed) * (bodyWaveAmplitude / 2);
+}
+
+function animateTadpoleBobbing(time) {
+  const baseBobbingSpeed = 3; // Faster vertical oscillation
+  const baseBobbingAmplitude = 0.2; // Larger bounce
+  const dynamicBobbing = jumpsRemaining < MAX_JUMPS ? 0.4 : 0; // Higher bounce when jumping
+
+  const bobbingOffset = Math.sin(time * baseBobbingSpeed) * (baseBobbingAmplitude + dynamicBobbing);
+  const newY = playerY + bobbingOffset;
+  tadpole.position.set(playerX, newY, playerZ);
+}
+
+function animateRippleEffect(time) {
+  const rippleSpeed = 8;
+  const rippleAmplitude = 0.4;
+
+  // Ripple starts at the tail and moves toward the head
+  tail.rotation.y = Math.sin(time * rippleSpeed) * rippleAmplitude;
+  head.rotation.y = Math.sin(time * rippleSpeed - Math.PI / 2) * (rippleAmplitude / 2); // Slight delay
+}
+
+function animateTadpoleTilting() {
+  const tiltAngle = 0.5; // Larger tilt angle for dramatic effect
+  if (moveLeft) {
+      tadpole.rotation.z = tiltAngle; // Tilt left
+  } else if (moveRight) {
+      tadpole.rotation.z = -tiltAngle; // Tilt right
+  } else {
+      tadpole.rotation.z *= 0.8; // Smoothly return to neutral
+  }
+}
+
+
+
 // ---- Respawn Functions with Fixed Z Position ----
 function respawnToken(obj) {
 
@@ -464,6 +516,12 @@ function animate() {
 
     let time = clock.getElapsedTime();
 
+    animateTail(time);
+    animateBody(time);
+    animateTadpoleBobbing(time);
+    animateRippleEffect(time);
+    animateTadpoleTilting();
+    
     // Apply underwater movement physics
     if (moveLeft) playerX -= MOVEMENT_SPEED;
     if (moveRight) playerX += MOVEMENT_SPEED;
@@ -482,7 +540,7 @@ function animate() {
 
     // Update tadpole position
     tadpole.position.set(playerX, playerY, playerZ);
-
+  
     // Move objects
     coin.position.z += obstacle_velocity;// COIN_VELOCITY;
     coin.rotation.z = time% 2*Math.PI;
