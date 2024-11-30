@@ -100,11 +100,12 @@ const WATER_RESISTANCE = 0.98;  // Slows down movement over time
 
 //---Player---
 const INITIAL_VELOCITY = 0.15; 
+const MAX_ANGLE = Math.PI / 4; // 45 degrees in radians
 const MOVEMENT_SPEED = 0.05;    // Slower horizontal movement for underwater feel
 const MAX_JUMPS = 3; // For mid-way jumps
 
 //---Objects------
-const STARTING_OBSTACLE_VELOCITY = 0.10;
+const STARTING_OBSTACLE_VELOCITY = 0.05;
 let obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
 const COIN_VELOCITY = 0.1;
 const PUP_VELOCITY = 0.05
@@ -225,7 +226,6 @@ scene.add(tadpole);
 
 // ---- Coin  ----
 const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-//const coinMaterial = new THREE.MeshPhongMaterial({ color: 0xFFD700, specular: 0xFFFFFF, shininess: 200});
 const coinMaterial = new THREE.MeshPhongMaterial({map: coinTexture});
 let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
@@ -241,21 +241,6 @@ pUP.position.z = 15;
 scene.add(pUP);
 
 
-// ---- Obstacle Texture ----
-logSideTexture.wrapS = THREE.RepeatWrapping; //Horizontal Wrap
-logSideTexture.wrapT = THREE.RepeatWrapping;
-logSideTexture.repeat.set(2, 10);
-
-// ---- Obstacle ----
-const obstacleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 32);
-
-const endObstacleMaterial = new THREE.MeshPhongMaterial({ map: logTipTexture});
-const sideObstacleMaterial = new THREE.MeshPhongMaterial({map: logSideTexture});
-let obstacle = new THREE.Mesh(obstacleGeometry, [sideObstacleMaterial, endObstacleMaterial, endObstacleMaterial]);
-obstacle.rotation.z = Math.PI / 2;
-
-scene.add(obstacle);
-
 //------Water fog---------
 scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
 const fogAmbientLight = new THREE.AmbientLight(0x334d5c, 0.6); // Soft blue ambient light
@@ -264,6 +249,124 @@ scene.add(ambientLight);
 const fogDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
 directionalLight.position.set(5, 10, 5);
 scene.add(directionalLight);
+
+// ---- Obstacle Texture ----
+logSideTexture.wrapS = THREE.RepeatWrapping; //Horizontal Wrap
+logSideTexture.wrapT = THREE.RepeatWrapping;
+logSideTexture.repeat.set(2, 10);
+
+// ---- Obstacle ----
+
+// Custom ShaderMaterial for the side of the log
+const logSideMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+        uTime: { value: 0.0 },
+        uDissolveProgress: { value: 0.0 },
+        uTexture: { value: logSideTexture },
+        
+        // Pass scene fog parameters to the shader
+        fogColor: { value: new THREE.Color() }, // Scene fog color
+        fogNear: { value: 1.0 }, // Scene fog near distance
+        fogFar: { value: 100.0 }, // Scene fog far distance
+        fogDensity: { value: 0.05 }, // Scene fog density
+    },
+    vertexShader: `
+        uniform float uTime;
+        uniform float uDissolveProgress;
+
+        varying vec3 vPosition;
+        varying vec2 vUv;
+        varying float vFogDepth;
+
+        // Simple noise function
+        float random(vec3 p) {
+            return fract(sin(dot(p.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+        }
+
+        void main() {
+            vUv = uv;
+            vPosition = position;
+
+            // Noise-based displacement
+            float noise = random(position * 2.0 + uTime);
+            float dissolveEffect = smoothstep(0.0, 1.0, uDissolveProgress);
+            vec3 newPosition = position + normal * noise * dissolveEffect;
+
+            // Fog depth calculation
+            vFogDepth = length(modelViewMatrix * vec4(newPosition, 1.0));
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+    `,
+    fragmentShader: `
+        uniform float uDissolveProgress;
+        uniform sampler2D uTexture;
+        uniform vec3 fogColor;
+        uniform float fogNear;
+        uniform float fogFar;
+        uniform float fogDensity;
+
+        varying vec3 vPosition;
+        varying vec2 vUv;
+        varying float vFogDepth;
+
+        float random(vec3 p) {
+            return fract(sin(dot(p.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+        }
+
+        float getFogFactor(float depth) {
+            float fogFactor;
+            if (fogDensity > 0.0) {
+                // Exponential fog
+                fogFactor = exp(-fogDensity * depth);
+                return clamp(fogFactor, 0.0, 1.0);
+            } else {
+                // Linear fog
+                fogFactor = smoothstep(fogNear, fogFar, depth);
+                return fogFactor;
+            }
+        }
+
+        void main() {
+            float noise = random(vPosition);
+            if (noise < uDissolveProgress) {
+                discard;
+            }
+
+            vec4 textureColor = texture2D(uTexture, vUv);
+            float fogFactor = getFogFactor(vFogDepth);
+
+            // Mix texture color with scene fog color
+            vec4 finalColor = mix(vec4(fogColor, 1.0), textureColor, fogFactor);
+
+            gl_FragColor = finalColor;
+        }
+    `,
+});
+
+// Update uniforms with the scene’s fog parameters
+logSideMaterial.uniforms.fogColor.value = scene.fog.color;
+logSideMaterial.uniforms.fogNear.value = scene.fog.near;
+logSideMaterial.uniforms.fogFar.value = scene.fog.far;
+
+if (scene.fog instanceof THREE.FogExp2) {
+    logSideMaterial.uniforms.fogDensity.value = scene.fog.density;
+} else {
+    logSideMaterial.uniforms.fogDensity.value = 0.035; // No density if it's linear fog
+}
+
+// Use the original CylinderGeometry
+const obstacleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 15, 32);
+
+// Apply textures to the cylinder
+const obstacle = new THREE.Mesh(obstacleGeometry, [
+    logSideMaterial, // Side material with shader
+    new THREE.MeshPhongMaterial({ map: logTipTexture }), // Ends with texture
+    new THREE.MeshPhongMaterial({ map: logTipTexture }), // Ends with texture
+]);
+
+obstacle.rotation.z = Math.PI / 2;
+scene.add(obstacle);
 
 //----Particles in water---
 
@@ -402,6 +505,8 @@ function respawnToken(obj) {
 
 function respawnObstacle() {
     obstacle.visible = true;
+    dissolving = false;
+    dissolveProgress = 0.0;
     if(!movingLog){
         obstacle.position.set(
             (Math.random() - 0.5) * 10,  // Random X position
@@ -508,6 +613,22 @@ function animateLog(){
     obstacle.position.y += speed;
 }
 
+function updateTadpoleTilt(verticalVelocity) {
+    // Clamp velocity to the range [-INITIAL_VELOCITY, INITIAL_VELOCITY]
+    const clampedVelocity = Math.max(Math.min(verticalVelocity, INITIAL_VELOCITY), -INITIAL_VELOCITY);
+
+    // Map velocity to angle (-45 to +45 degrees, in radians)
+    const tiltAngle = (clampedVelocity / INITIAL_VELOCITY) * MAX_ANGLE;
+
+    // Update the tadpole's rotation (adjust axis as needed)
+    tadpole.rotation.x = tiltAngle;
+}
+
+
+let dissolveProgress = 0.0;
+let dissolving = false;
+
+
 
 // ---- Main Animation Loop ----
 function animate() {
@@ -538,9 +659,21 @@ function animate() {
         jumpsRemaining = MAX_JUMPS;
     }
 
+    if(dissolveProgress < 1.0 && dissolving){
+        dissolveProgress += 0.08; // Increment dissolve
+        if (dissolveProgress >= 1.0){
+            dissolving = false;
+        }
+        //if (dissolveProgress > 1.0) dissolveProgress = 0.0; // Reset
+
+    }
+    logSideMaterial.uniforms.uTime.value += 0.05; // Update time
+    logSideMaterial.uniforms.uDissolveProgress.value = dissolveProgress;
+
     // Update tadpole position
+    updateTadpoleTilt(velocityY);
     tadpole.position.set(playerX, playerY, playerZ);
-  
+
     // Move objects
     coin.position.z += obstacle_velocity;// COIN_VELOCITY;
     coin.rotation.z = time% 2*Math.PI;
@@ -585,7 +718,6 @@ function animate() {
         powerElement.style.display = 'block'
         let timeLeft = Math.ceil(poweredUPStart+10-time)
         powerElement.innerHTML = `Power Up: ${timeLeft}`;
-        console.log(poweredUP);
         if(time-poweredUPStart >= 10){
             poweredUP = false;
             powerElement.style.display = 'none'
@@ -605,12 +737,13 @@ function animate() {
             bgSound.stop();
           }
         } else{
-            obstacle.visible = false;
+            dissolving = true;
 
             // Log Breaking Sound
             if (!logBreakSound.isPlaying) {
-              playSound(logBreakSound, 1000); //1 sec only
-            }
+                playSound(logBreakSound, 1000); //1 sec only
+              }
+
         }
     }
 
