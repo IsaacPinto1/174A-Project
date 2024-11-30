@@ -47,11 +47,12 @@ const WATER_RESISTANCE = 0.98;  // Slows down movement over time
 
 //---Player---
 const INITIAL_VELOCITY = 0.15; 
+const MAX_ANGLE = Math.PI / 4; // 45 degrees in radians
 const MOVEMENT_SPEED = 0.05;    // Slower horizontal movement for underwater feel
 const MAX_JUMPS = 3; // For mid-way jumps
 
 //---Objects------
-const STARTING_OBSTACLE_VELOCITY = 0.10;
+const STARTING_OBSTACLE_VELOCITY = 0.05;
 let obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
 const COIN_VELOCITY = 0.1;
 const PUP_VELOCITY = 0.05
@@ -502,6 +503,17 @@ function animateLog(){
     obstacle.position.y += speed;
 }
 
+function updateTadpoleTilt(verticalVelocity) {
+    // Clamp velocity to the range [-INITIAL_VELOCITY, INITIAL_VELOCITY]
+    const clampedVelocity = Math.max(Math.min(verticalVelocity, INITIAL_VELOCITY), -INITIAL_VELOCITY);
+
+    // Map velocity to angle (-45 to +45 degrees, in radians)
+    const tiltAngle = (clampedVelocity / INITIAL_VELOCITY) * MAX_ANGLE;
+
+    // Update the tadpole's rotation (adjust axis as needed)
+    tadpole.rotation.x = tiltAngle;
+}
+
 
 let dissolveProgress = 0.0;
 let dissolving = false;
@@ -543,7 +555,13 @@ function animate() {
     logSideMaterial.uniforms.uDissolveProgress.value = dissolveProgress;
 
     // Update tadpole position
+    updateTadpoleTilt(velocityY);
     tadpole.position.set(playerX, playerY, playerZ);
+    
+
+
+
+
 
     // Move objects
     coin.position.z += obstacle_velocity;// COIN_VELOCITY;
