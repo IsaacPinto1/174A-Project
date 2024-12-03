@@ -38,6 +38,7 @@ const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
 directionalLight.position.set(5, 10, 5).normalize();
 scene.add(directionalLight);
 
+
 // ---- Audio Listener ----
 const listener = new AudioListener();
 camera.add(listener);
@@ -52,7 +53,7 @@ audioLoader.load('/sounds/bg.mp3', (buffer) => {
     bgSound.setBuffer(buffer);
     bgSound.setLoop(false);
     bgSound.setVolume(0.5);
-    bgSound.play();
+    // bgSound.play();
 });
 
 const coinSound = new Audio(listener);
@@ -143,6 +144,8 @@ const logSideTexture = textureLoader.load('/images/wood_texture.jpg');
 const logTipTexture = textureLoader.load('images/log_tip.jpg');
 
 const coinTexture = textureLoader.load('images/coin.jpg');
+
+
 // ---- Plane Geometry for Ground ----
 const groundObjects = []
 function setPosition(ground, yRotation, xPosition,yPosition, zPosition){ 
@@ -223,6 +226,7 @@ head.add(tail);
 tadpole.add(head);
 
 scene.add(tadpole);
+
 
 // ---- Coin  ----
 const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
@@ -575,7 +579,34 @@ function restartGame() {
 
     //Restart Background Music if ended
     if (!bgSound.isPlaying) {
-      bgSound.play();
+      //bgSound.play();
+    }
+}
+
+// ---- Blob Effect ----
+
+const blobGeometry = new THREE.SphereGeometry(1.4, 30, 30); // Slightly larger than tadpole's head
+const blobMaterial = new THREE.MeshStandardMaterial({
+    color: 0x93dc5c,
+    transparent: true,
+    opacity: 0.5,
+    emissive: 0x93dc5c,
+    emissiveIntensity: 0.8
+});
+const blob = new THREE.Mesh(blobGeometry, blobMaterial);
+blob.visible = false; // Initially hidden
+tadpole.add(blob); // Attach the blob to the tadpole
+
+// ---- Animate Blob ----
+function animateBlob(time) {
+    if (poweredUP) {
+        blob.visible = true;
+        // Pulse effect: scale and opacity variation
+        const scale = 1 + 0.1 * Math.sin(time * 5); // Oscillates between 1 and 1.1
+        blob.scale.set(scale, scale, scale);
+        blobMaterial.opacity = 0.5 + 0.3 * Math.sin(time * 5); // Oscillates between 0.5 and 0.8
+    } else {
+        blob.visible = false;
     }
 }
 
@@ -625,6 +656,7 @@ function updateTadpoleTilt(verticalVelocity) {
 }
 
 
+
 let dissolveProgress = 0.0;
 let dissolving = false;
 
@@ -642,7 +674,7 @@ function animate() {
     animateTadpoleBobbing(time);
     animateRippleEffect(time);
     animateTadpoleTilting();
-    
+    animateBlob(time);
     // Apply underwater movement physics
     if (moveLeft) playerX -= MOVEMENT_SPEED;
     if (moveRight) playerX += MOVEMENT_SPEED;

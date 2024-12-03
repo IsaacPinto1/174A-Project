@@ -2,56 +2,98 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
-		<title>Final Project</title>
+		<title>Underwater Game</title>
+		<!-- Google Fonts -->
+		<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;700&family=Luckiest+Guy&display=swap" rel="stylesheet">
 		<style>
 			body {
-            margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        	}
-        
-        	/* Score Display at Top */
-        	#score {
-            	position: absolute;
-            	top: 10%;
-            	left: 10%;
-            	font-size: 24px;
-            	color: black;
-        	}
-			#stage{
-				position: absolute;
-            	top: 20%;
-            	left: 10%;
-            	font-size: 24px;
-            	color: black;
+				margin: 0;
+				overflow: hidden;
+				font-family: 'Baloo 2', Arial, sans-serif;
+				background: linear-gradient(to bottom, #001F3F, #005073); /* Deep sea gradient */
+				color: white; /* Default text color */
 			}
 
-			#power{
+			/* Score and Stage Text */
+			#score, #stage, #power {
 				position: absolute;
-            	top: 30%;
-            	left: 10%;
-            	font-size: 24px;
-            	color: black;
-				display: none; /* Hidden initially */
+				font-family: 'Luckiest Guy', cursive;
+				font-size: 24px;
+				text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
+				transition: transform 0.3s ease, text-shadow 0.3s ease; /* Smooth hover effect */
 			}
-        
-        /* Game Over Text in Center */
-        	#gameOver {
-            	position: absolute;
-            	top: 50%;
-            	left: 50%;
-            	transform: translate(-50%, -50%);
-            	font-size: 48px;
-            	color: red;
-            	display: none; /* Hidden initially */
-        	}
+
+			#score {
+				top: 10%;
+				left: 5%;
+				color: #FFD166; 
+
+			}
+
+			#stage {
+				top: 15%;
+				left: 5%;
+				color: #FFD166; 
+
+			}
+
+			#power {
+				top: 20%;
+				left: 5%;
+				color: #AEF78E;
+				display: none; 
+			}
+
+			/* Hover Effect for Text */
+			#score:hover, #stage:hover, #power:hover {
+				transform: scale(1.1);
+				text-shadow: 4px 4px 12px rgba(0, 0, 0, 1), 0 0 15px #FFD700;
+			}
+		
+			/* GAME OVER Text */
+			#gameOver {
+				position: absolute;
+				top: 50%;
+				left: 50%;
+				transform: translate(-50%, -50%);
+				font-family: 'Luckiest Guy', cursive;
+				font-size: 64px;
+				color: #FF4C4C; /* Vibrant red */
+				text-align: center;
+				text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.8);
+				display: none; /* Hidden initially */
+				animation: fadeInBounce 2s ease-in-out, pulseColor 3s infinite;
+			}
+
+			#gameOver small {
+				display: block;
+				font-size: 18px;
+				color: #FFD700; /* Golden text */
+				margin-top: 10px;
+			}
+
+			/* Fade-In with Bounce Animation */
+			@keyframes fadeInBounce {
+				0% { opacity: 0; transform: translate(-50%, -70%); }
+				50% { opacity: 1; transform: translate(-50%, -55%); }
+				100% { transform: translate(-50%, -50%); }
+			}
+
+			/* Color Pulsing Animation */
+			@keyframes pulseColor {
+				0%, 100% { color: #FF4C4C; text-shadow: 3px 3px 8px rgba(0, 0, 0, 0.8); }
+				50% { color: #FF6347; text-shadow: 5px 5px 12px rgba(0, 0, 0, 1); }
+			}
 		</style>
 	</head>
 	<body>
 		<div id="score">Score: 0</div>
 		<div id="stage">Stage: 1</div>
 		<div id="power">Power Up: 1</div>
-		<div id="gameOver">GAME OVER</div>
+		<div id="gameOver">
+			GAME OVER
+			<small>Press R to 'Restart'</small>
+		</div>
 		<script type="module" src="/main.js"></script>
 	</body>
 </html>
