@@ -23,6 +23,7 @@ camera.position.set(CAMERA_POS_X, CAMERA_POS_Y, CAMERA_POS_Z);
 // ---- Renderer ----
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
 
 // ---- Controls ----
@@ -655,6 +656,16 @@ function updateTadpoleTilt(verticalVelocity) {
     tadpole.rotation.x = tiltAngle;
 }
 
+//Making da scene responsive
+window.addEventListener('resize', onWindowResize);
+
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+}
 
 
 let dissolveProgress = 0.0;
@@ -665,8 +676,10 @@ let dissolving = false;
 // ---- Main Animation Loop ----
 function animate() {
     requestAnimationFrame(animate);
-    if (!gameOn) return;
-
+    if (!gameOn) {
+        renderer.render(scene, camera);
+        return;
+    }
     let time = clock.getElapsedTime();
 
     animateTail(time);
