@@ -731,7 +731,7 @@ function respawnToken(obj, zmin = 13, zmax = 17) {
 
     let zspawn = -(Math.random() * (zmax - zmin) + zmin);
     obj.position.set(
-        (Math.random() - 0.5) * 10,  // Random X position
+        (Math.random() - 0.5) * 11,  // Random X position
         obj.position.y,                           // Fixed Y position
         zspawn                       // Random Z position
     );
@@ -837,6 +837,8 @@ function restartGame() {
     speedBoostStart = null;
     obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
     movingLog = false;
+    goldGained = 10;
+    enableVolcano = false;
     
     changeTadpoleColor(0x93DC5C); // Reset tadpole color
 
@@ -1073,7 +1075,10 @@ function animate() {
     if (checkCollision(coin)) {
         score += goldGained;
         playSound(coinSound);
-        if((score%100 >= 50 && (score-goldGained)%100 < 50) || (score%100 >= 0 && (score-goldGained)%100 > 50)){
+        const prevBoundary = Math.floor((score - goldGained) / 50);
+        const newBoundary = Math.floor(score / 50);
+
+        if(newBoundary > prevBoundary){
             stage +=1;
             stageElement.innerHTML = `Stage: ${stage}`;
             obstacle_velocity = obstacle_velocity + 0.02;
@@ -1082,9 +1087,9 @@ function animate() {
         if(score > 99){
             movingLog = true;
         }
-        if(score > 174){
+        if(score > 174 && !enableVolcano){
             enableVolcano = true;
-            for(const volcano in volcanoes){
+            for(const volcano of volcanoes){
                 volcano.position.z = Math.random()* 60 +20;
             }
         }
@@ -1149,7 +1154,10 @@ function animate() {
         respawnToken(treasureChest,100, 400);
         score = score += 40;
         playSound(chestSound);
-        if((score%100 >= 50 && (score-40)%100 < 50) || (score%100 >= 0 && (score-40)%100 > 50)){
+        const prevBoundary = Math.floor((score - goldGained) / 50);
+        const newBoundary = Math.floor(score / 50);
+
+        if(newBoundary > prevBoundary){
             stage +=1;
             stageElement.innerHTML = `Stage: ${stage}`;
             obstacle_velocity = obstacle_velocity + 0.02;
