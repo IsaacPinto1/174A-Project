@@ -321,6 +321,79 @@ scene.add(treasureChest);
 treasureChest.position.z = 20;
 treasureChest.position.y = -0.15;
 treasureChest.rotation.z = Math.PI / 10; // Rotate by 45 degrees (in radians)
+// Factory function to create a volcano
+function createVolcano(position) {
+    const volcano = new THREE.Group();
+
+    // --- Volcano Base ---
+    const volcanoGeometry = new THREE.CylinderGeometry(0.5, 2, 1, 32, 1, true); // Open cylinder
+    const volcanoMaterial = new THREE.MeshPhongMaterial({ 
+        map: textureLoader.load('images/volcano.jpg'),
+        normalMap: textureLoader.load('images/volcano_normal.jpg'),
+        side: THREE.DoubleSide // Render both sides for the rim
+    });
+    const volcanoBase = new THREE.Mesh(volcanoGeometry, volcanoMaterial);
+
+    // --- Lava Surface ---
+    const circleGeometry = new THREE.CircleGeometry(0.9, 32); // Radius matches cylinder's radius
+    const circleMaterial = new THREE.MeshStandardMaterial({
+        map: textureLoader.load('images/lava.png'),
+        normalMap: textureLoader.load('images/lava_normal.png'),
+    });
+    const lavaSurface = new THREE.Mesh(circleGeometry, circleMaterial);
+    lavaSurface.rotation.x = -Math.PI / 2; // Rotate to lie flat
+    lavaSurface.position.y = 0.2; // Position the lava
+
+    // --- Fumes ---
+    const fumesCount = 500;
+    const fumes = new THREE.BufferGeometry();
+    const fumePositions = new Float32Array(fumesCount * 3);
+
+    for (let i = 0; i < fumesCount; i++) {
+        fumePositions[i * 3] = Math.random() * 2 - 1;  // X position
+        fumePositions[i * 3 + 1] = Math.random() * 10; // Y position
+        fumePositions[i * 3 + 2] = Math.random() * 2 - 1; // Z position
+    }
+    fumes.setAttribute('position', new THREE.BufferAttribute(fumePositions, 3));
+
+    const fumeMaterial = new THREE.PointsMaterial({
+        color: 0xFFA500,
+        size: 0.1,
+        transparent: true,
+        opacity: 0.5,
+    });
+    const fumeSystem = new THREE.Points(fumes, fumeMaterial);
+
+    // Add components to the volcano group
+    volcano.add(volcanoBase);
+    volcano.add(lavaSurface);
+    volcano.add(fumeSystem);
+
+    // Position the volcano
+    volcano.position.set(position.x, position.y, position.z);
+
+    return volcano;
+}
+
+// Create an array of volcanoes
+const volcanoes = [];
+const volcanoPositions = [
+    { x: 0, y: 0, z: 15 },
+    { x: 5, y: 0, z: 15 },
+    { x: -5, y: 0, z: 15 },
+    { x: 10, y: 0, z: 15 },
+    { x: 10, y: 0, z: 15 },
+    { x: 10, y: 0, z: 15 },
+    { x: 10, y: 0, z: 15 }
+];
+
+for (const pos of volcanoPositions) {
+    const volcano = createVolcano(pos);
+    volcanoes.push(volcano);
+    scene.add(volcano); // Add each volcano to the scene
+}
+
+let enableVolcano = false;
 
 
 //------Gold Gained-------
@@ -598,20 +671,38 @@ function respawnObstacle() {
     obstacle.visible = true;
     dissolving = false;
     dissolveProgress = 0.0;
-    if(!movingLog){
-        obstacle.position.set(
-            (Math.random() - 0.5) * 8,  // Random X position
-            1,                           // Fixed Y position
-            INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
-        );
-    } else{
-        obstacle.position.set(
-            (Math.random() - 0.5) * 10,  // Random X position
-            Math.random()*(5-0.5)+0.5,                           // Fixed Y position
-            INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
-        );
-    }
+    obstacle.position.set(
+        (Math.random() - 0.5) * 8,  // Random X position
+        1,                           // Fixed Y position
+        INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
+    )
 }
+
+// ---- Check volcano collision ----
+function checkVolcanoCollision() {
+    for (const volcano of volcanoes) {
+        const tadpoleX = tadpole.position.x;
+        const tadpoleZ = tadpole.position.z;
+        const volcanoX = volcano.position.x;
+        const volcanoZ = volcano.position.z;
+
+        // Calculate horizontal distance (ignore Y-axis)
+        const horizontalDistance = Math.sqrt(
+            (tadpoleX - volcanoX) ** 2 + (tadpoleZ - volcanoZ) ** 2
+        );
+
+        // Volcano cylinder radius (adjust to your volcano's size)
+        const volcanoRadius = 1; 
+
+        // Check if within radius
+        if (horizontalDistance < volcanoRadius) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 
 // ---- Check for Collision with Tadpole ----
 function checkCollision(obj) {
@@ -659,6 +750,9 @@ function checkCollision(obj) {
 // ---- Restart Game Function ----
 function restartGame() {
     respawnObstacle(); //Do this first so restart doesnt glitch
+    for(const volcano of volcanoes){
+        volcano.position.z = 15;
+    }
     score = 0;
     stage = 1;
     playerX = 0;
@@ -674,7 +768,6 @@ function restartGame() {
     
     gameOverElement.style.display = 'none';
     powerElement.style.display = 'none';
-    speedBoostElement.style.display = 'none';
     scoreElement.innerHTML = `Score: ${score}`;
     stageElement.innerHTML = `Stage: ${stage}`;
     
@@ -732,6 +825,30 @@ function animateParticles() {
     }
     particleSystem.geometry.attributes.position.needsUpdate = true;
 }
+
+function animateAllFumes(volcanoes) {
+    volcanoes.forEach(volcano => {
+        // Get the fume system (assuming it's the last child in each volcano group)
+        const fumeSystem = volcano.children.find(child => child.isPoints);
+        if (!fumeSystem) return; // Skip if no fume system is found
+
+        // Update the fumes' positions
+        const fumePositions = fumeSystem.geometry.attributes.position.array;
+        for (let i = 0; i < fumePositions.length / 3; i++) {
+            fumePositions[i * 3] += (Math.random() - 0.5) * 0.01; // Random X movement
+            fumePositions[i * 3 + 1] += 0.01 + Math.random() * (0.03 - 0.01); // Random upward movement
+
+            if (fumePositions[i * 3 + 1] > 8) { // Reset height when it reaches a threshold
+                fumePositions[i * 3 + 1] = 0;
+            }
+        }
+        fumeSystem.geometry.attributes.position.needsUpdate = true;
+    });
+}
+
+
+
+
 //----Change tadpole color----
 function changeTadpoleColor(colorCode = 0x800080 ) {
     const color = new THREE.Color(colorCode); // Purple color
@@ -848,6 +965,30 @@ function animate() {
 
     treasureChest.position.z += obstacle_velocity;
 
+    if(enableVolcano){
+        animateAllFumes(volcanoes)
+        for (const volcano of volcanoes) {
+            volcano.position.z += obstacle_velocity;
+            if(volcano.position.z > 10){
+                respawnToken(volcano, 30, 80);
+            }
+        }
+        if(checkVolcanoCollision()){
+            if(!poweredUP){
+                gameOn = false;
+                gameOverElement.style.display = 'block';
+                playSound(gameOverSound);
+    
+    
+              // Stop background music
+              if (bgSound.isPlaying) {
+                bgSound.stop();
+              }
+            } 
+        }
+        
+    }
+
     if(movingLog){
         animateLog()
     }
@@ -864,6 +1005,12 @@ function animate() {
         }
         if(score > 99){
             movingLog = true;
+        }
+        if(score > 174){
+            enableVolcano = true;
+            for(const volcano in volcanoes){
+                volcano.position.z = Math.random()* 60 +20;
+            }
         }
         if(score % 100 == 0){
             respawnToken(pUP);
@@ -922,7 +1069,7 @@ function animate() {
     }
 
     if(checkCollision(treasureChest)){
-        respawnToken(treasureChest,10, 20);
+        respawnToken(treasureChest,100, 400);
         score = score += 40;
         if((score%100 >= 50 && (score-40)%100 < 50) || (score%100 >= 0 && (score-40)%100 > 50)){
             stage +=1;
@@ -933,6 +1080,9 @@ function animate() {
         if(score > 99){
             movingLog = true;
         }  
+        if(score > 174){
+            enableVolcano = true;
+        }
         goldGained = goldGained + 5;   
         scoreElement.innerHTML = `Score: ${score}`;
     }
@@ -970,6 +1120,7 @@ function animate() {
 
     //animate partcles
     animateParticles()
+
     animateGround()
 
     //ensure bounding box follows
