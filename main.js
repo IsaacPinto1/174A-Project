@@ -173,17 +173,42 @@ const groundMaterial = new THREE.MeshStandardMaterial({ map: groundBase, normalM
 const floor = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(floor, 0, 0, 0,0)
 
+const constFloor = new THREE.Mesh(groundGeometry, groundMaterial);
+constFloor.rotation.x = -Math.PI / 2;
+constFloor.position.z = -4;
+constFloor.position.y = -0.01;
+constFloor.position.x = 0;
+scene.add(constFloor)
+
 const floor2 = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(floor2, 0, 0, 0, -1*GROUND_LENGTH + 2* obstacle_velocity)
 
 //SideBanks
 const leftBank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(leftBank, -0.3, 19, 3, 0)
+
+const constLeftBank = new THREE.Mesh(groundGeometry, groundMaterial);
+constLeftBank.rotation.x = -Math.PI / 2; // Match ground rotation
+constLeftBank.rotation.y = -0.3; // Apply the same rotation as leftBank
+constLeftBank.position.x = 19.01;
+constLeftBank.position.y = 3;
+constLeftBank.position.z = 0; // Match leftBank position
+scene.add(constLeftBank);
+
 const left2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(left2Bank, -0.3, 19, 3,  -1*GROUND_LENGTH + 2*obstacle_velocity)
 
 const rightBank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(rightBank, 0.3, -19, 3, 0)
+
+const constRightBank = new THREE.Mesh(groundGeometry, groundMaterial);
+constRightBank.rotation.x = -Math.PI / 2; // Match ground rotation
+constRightBank.rotation.y = 0.3; // Apply the same rotation as rightBank
+constRightBank.position.x = -19.01;
+constRightBank.position.y = 3;
+constRightBank.position.z = 0; // Match rightBank position
+scene.add(constRightBank);
+
 const right2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(right2Bank, 0.3, -19, 3,  -1*GROUND_LENGTH + 2*obstacle_velocity)
 
@@ -762,7 +787,8 @@ function restartGame() {
     speedBoostStart = null;
     obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
     movingLog = false;
-
+    
+    changeTadpoleColor(0x93DC5C); // Reset tadpole color
 
     gameOverElement.style.display = 'none';
     powerElement.style.display = 'none';
