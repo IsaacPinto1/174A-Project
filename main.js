@@ -212,6 +212,31 @@ scene.add(constRightBank);
 const right2Bank = new THREE.Mesh(groundGeometry, groundMaterial);
 setPosition(right2Bank, 0.3, -19, 3,  -1*GROUND_LENGTH + 2*obstacle_velocity)
 
+//---- Caustics / Water Geometry ----
+const causticsTexture = textureLoader.load('/images/caustics.png');
+causticsTexture.wrapS = THREE.RepeatWrapping;
+causticsTexture.wrapT = THREE.RepeatWrapping;
+
+causticsTexture.repeat.set(2, 2); // Increase to make patterns larger or more noticeable
+
+
+const waterGeometry = new THREE.PlaneGeometry(30, GROUND_LENGTH);
+const waterMaterial = new THREE.MeshBasicMaterial({
+  map: causticsTexture,
+  transparent: true,
+  opacity: 0.4,
+  depthWrite: false,
+  depthTest: true,
+});
+
+const waterPlane = new THREE.Mesh(waterGeometry, waterMaterial);
+waterPlane.rotation.x = -Math.PI / 2;
+waterPlane.position.y = 0.05;
+
+waterMaterial.blending = THREE.AdditiveBlending;
+
+scene.add(waterPlane);
+
 
 // ---- Tadpole Geometry ----
 const tadpole = new THREE.Group(); 
@@ -291,7 +316,6 @@ let speedBoostOrb = new THREE.Mesh(speedBoostGeometry, speedBoostMaterial);
 speedBoostOrb.position.z = 15;
 speedBoostOrb.position.y = 1;
 scene.add(speedBoostOrb);
-
 
 
 //-----Treasure Chest(Score Doubler)------
@@ -929,8 +953,6 @@ function onWindowResize() {
 let dissolveProgress = 0.0;
 let dissolving = false;
 
-
-
 // ---- Main Animation Loop ----
 function animate() {
     requestAnimationFrame(animate);
@@ -939,6 +961,7 @@ function animate() {
         return;
     }
     let time = clock.getElapsedTime();
+
 
     animateTail(time);
     animateBody(time);
@@ -985,7 +1008,7 @@ function animate() {
     pUP.rotation.z = (time+1.234)%2*Math.PI;
 
     obstacle.position.z += obstacle_velocity;
-
+    
     speedBoostOrb.position.z += obstacle_velocity;//Speed boost on coin velocity
 
     treasureChest.position.z += obstacle_velocity;
@@ -1143,6 +1166,10 @@ function animate() {
     if (speedBoostOrb.position.z > 10) respawnToken(speedBoostOrb, 40, 400);
     if (treasureChest.position.z > 10) respawnToken(treasureChest,100, 500);
 
+    // animate caustics
+    causticsTexture.offset.x += 0.0002;
+    causticsTexture.offset.y += 0.0002;
+    
     //animate partcles
     animateParticles()
 
