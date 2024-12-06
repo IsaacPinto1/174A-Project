@@ -149,6 +149,10 @@ const logTipTexture = textureLoader.load('images/log_tip.jpg');
 
 const coinTexture = textureLoader.load('images/coin.jpg');
 
+//----Texture for chest--------
+const chestTexture = textureLoader.load('images/Wood_027_basecolor.jpg');
+const chestNormal = textureLoader.load('images/Wood_027_normal.jpg');
+
 
 // ---- Plane Geometry for Ground ----
 const groundObjects = []
@@ -237,6 +241,7 @@ const coinGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
 const coinMaterial = new THREE.MeshPhongMaterial({map: coinTexture});
 let coin = new THREE.Mesh(coinGeometry, coinMaterial);
 coin.rotation.x = Math.PI / 2;
+coin.position.y=1;
 scene.add(coin);
 
 
@@ -246,6 +251,7 @@ const pUPMaterial = new THREE.MeshPhongMaterial({ color: 0xFF0000, specular: 0xF
 let pUP = new THREE.Mesh(pUPGeometry, pUPMaterial);
 pUP.rotation.x = Math.PI / 2;
 pUP.position.z = 15;
+pUP.position.y=1;
 scene.add(pUP);
 
 
@@ -261,6 +267,64 @@ speedBoostOrb.position.y = 1;
 scene.add(speedBoostOrb);
 
 
+
+//-----Treasure Chest(Score Doubler)------
+const treasureChest = new THREE.Group();
+
+// Create the base (rectangular hexahedron)
+const chestBaseGeometry = new THREE.BoxGeometry(2, 1, 1); // Width, Height, Depth
+const chestMaterial = new THREE.MeshStandardMaterial({ map: chestTexture, normalMap: chestNormal, color: 0x8B4513, }); // Brown color
+const base = new THREE.Mesh(chestBaseGeometry, chestMaterial);
+base.position.y = 0.5; // Raise it so it aligns with the lid
+
+//Clasp
+const claspGeometry = new THREE.BoxGeometry(0.4, 0.2, 0.2);
+const claspMatieral = new THREE.MeshStandardMaterial({color: 0xFFD700});
+const clasp = new THREE.Mesh(claspGeometry, claspMatieral);
+clasp.position.set(0, 0.9, 0.6);
+
+// Create the lid (cylinder)
+const chestLidGeometry = new THREE.CylinderGeometry(0.5, 0.5, 2, 32, 1, false, 0, Math.PI); // Half-cylinder
+const lid = new THREE.Mesh(chestLidGeometry, chestMaterial);
+lid.rotation.z = Math.PI / 2; // Rotate the cylinder to face forward
+lid.position.set(0, 1, 0); // Position it on top of the base
+
+//Edges
+const edgeGeometry = new THREE.BoxGeometry(2.05, 0.1, 1.05);
+const edge = new THREE.Mesh(edgeGeometry, claspMatieral);
+edge.position.y = 1;
+treasureChest.add(edge);
+const edge2Geometry = new THREE.BoxGeometry(0.1, 1, 1.05);
+const edge2 = new THREE.Mesh(edge2Geometry, claspMatieral);
+edge2.position.y = 0.5;
+edge2.position.x = 0.25;
+treasureChest.add(edge2);
+const edge3 = new THREE.Mesh(edge2Geometry, claspMatieral);
+edge3.position.y = 0.5;
+edge3.position.x = 0.75;
+treasureChest.add(edge3);
+const edge4 = new THREE.Mesh(edge2Geometry, claspMatieral);
+edge4.position.y = 0.5;
+edge4.position.x = -0.25;
+treasureChest.add(edge4);
+const edge5 = new THREE.Mesh(edge2Geometry, claspMatieral);
+edge5.position.y = 0.5;
+edge5.position.x = -0.75;
+treasureChest.add(edge5);
+
+
+// Add the base and lid to the treasure chest group
+treasureChest.add(base);
+treasureChest.add(lid);
+treasureChest.add(clasp);
+scene.add(treasureChest);
+treasureChest.position.z = 20;
+treasureChest.position.y = -0.15;
+treasureChest.rotation.z = Math.PI / 10; // Rotate by 45 degrees (in radians)
+
+
+//------Gold Gained-------
+let goldGained = 10;
 
 //------Water fog---------
 scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
@@ -524,7 +588,7 @@ function respawnToken(obj, zmin = 13, zmax = 17) {
     let zspawn = -(Math.random() * (zmax - zmin) + zmin);
     obj.position.set(
         (Math.random() - 0.5) * 10,  // Random X position
-        1,                           // Fixed Y position
+        obj.position.y,                           // Fixed Y position
         zspawn                       // Random Z position
     );
 }
@@ -536,7 +600,7 @@ function respawnObstacle() {
     dissolveProgress = 0.0;
     if(!movingLog){
         obstacle.position.set(
-            (Math.random() - 0.5) * 10,  // Random X position
+            (Math.random() - 0.5) * 8,  // Random X position
             1,                           // Fixed Y position
             INITIAL_SPAWN_Z - 5          // Fixed initial Z position, slightly behind coin
         );
@@ -572,11 +636,29 @@ function checkCollision(obj) {
           Math.abs(tadpoleY - obstacle.position.y) < obstacleHalfHeight + 0.5 &&
           Math.abs(tadpoleZ - obstacle.position.z) < obstacleHalfDepth + 0.5
       );
-  }
+    }  else if (obj === treasureChest) {
+        const tadpoleX = tadpole.position.x;
+        const tadpoleY = tadpole.position.y;
+        const tadpoleZ = tadpole.position.z;
+    
+        // Define treasure chest boundaries (assuming centered at its position)
+        const chestHalfWidth = 0.9;  // Half of chest width (2 / 2)
+        const chestHalfHeight = 0.9; // Half of chest height (1 / 2)
+        const chestHalfDepth = 0.5;  // Half of chest depth (1 / 2)
+    
+        // Check if the tadpole is within the bounds of the treasure chest
+        return (
+            Math.abs(tadpoleX - treasureChest.position.x) < chestHalfWidth + 0.5 && // Add tadpole radius (0.5)
+            Math.abs(tadpoleY - treasureChest.position.y) < chestHalfHeight + 0.5 &&
+            Math.abs(tadpoleZ - treasureChest.position.z) < chestHalfDepth + 0.5
+        );
+    }
+  
   return false;
 }
 // ---- Restart Game Function ----
 function restartGame() {
+    respawnObstacle(); //Do this first so restart doesnt glitch
     score = 0;
     stage = 1;
     playerX = 0;
@@ -599,7 +681,7 @@ function restartGame() {
     // Reset object positions with fixed Z values
     respawnToken(coin);
     respawnToken(speedBoostOrb, 40, 400);
-    respawnObstacle();
+    respawnToken(TreasureChest,100, 500);
     pUP.position.z = 15;
     
     tadpole.position.set(playerX, playerY, playerZ);
@@ -764,15 +846,17 @@ function animate() {
 
     speedBoostOrb.position.z += obstacle_velocity;//Speed boost on coin velocity
 
+    treasureChest.position.z += obstacle_velocity;
+
     if(movingLog){
         animateLog()
     }
 
     // Check collisions
     if (checkCollision(coin)) {
-        score += 10;
+        score += goldGained;
         playSound(coinSound);
-        if(score%50 == 0){
+        if((score%100 >= 50 && (score-goldGained)%100 < 50) || (score%100 >= 0 && (score-goldGained)%100 > 50)){
             stage +=1;
             stageElement.innerHTML = `Stage: ${stage}`;
             obstacle_velocity = obstacle_velocity + 0.02;
@@ -788,11 +872,34 @@ function animate() {
         respawnToken(coin);
     }
 
+
+
     if(checkCollision(speedBoostOrb)){
         speedBoost = true;
         speedBoostStart = time;
+        console.log(time)
         obstacle_velocity = obstacle_velocity*2;
         respawnToken(speedBoostOrb, 300, 400);
+    }
+
+    if(speedBoost){
+        let timeLeft = Math.ceil(speedBoostStart+10-time)
+        changeTadpoleColor(0x800080);
+        if (time - speedBoostStart >= 8) {
+            // Blinking logic for the last 3 seconds
+            let elapsedBlinkTime = Math.floor((time - speedBoostStart) * 6) % 2; // Toggles every 0.5 seconds
+            if (elapsedBlinkTime === 0) {
+                changeTadpoleColor(0x93DC5C); // Alternate color
+            } else {
+                changeTadpoleColor(0x800080); // Default boosted color
+            }
+        }
+        if(time-speedBoostStart >= 10){
+            changeTadpoleColor(0x93DC5C);
+            obstacle_velocity = obstacle_velocity/2;
+            speedBoost = false;
+            console.log(time)
+        }
     }
 
     if (checkCollision(pUP)){
@@ -802,16 +909,7 @@ function animate() {
         playSound(powerUpSound);
     }
 
-    if(speedBoost){
-        let timeLeft = Math.ceil(speedBoostStart+10-time)
-        changeTadpoleColor(0x800080);
-        
-        if(time-speedBoostStart >= 10){
-            changeTadpoleColor(0x93DC5C);
-            obstacle_velocity = obstacle_velocity/2;
-            speedBoost = false;
-        }
-    }
+   
 
     if (poweredUP){
         powerElement.style.display = 'block'
@@ -821,6 +919,22 @@ function animate() {
             poweredUP = false;
             powerElement.style.display = 'none'
         }
+    }
+
+    if(checkCollision(treasureChest)){
+        respawnToken(treasureChest,10, 20);
+        score = score += 40;
+        if((score%100 >= 50 && (score-40)%100 < 50) || (score%100 >= 0 && (score-40)%100 > 50)){
+            stage +=1;
+            stageElement.innerHTML = `Stage: ${stage}`;
+            obstacle_velocity = obstacle_velocity + 0.02;
+            speed= obstacle_velocity*0.4;
+        }   
+        if(score > 99){
+            movingLog = true;
+        }  
+        goldGained = goldGained + 5;   
+        scoreElement.innerHTML = `Score: ${score}`;
     }
 
 
@@ -846,14 +960,20 @@ function animate() {
         }
     }
 
+
+
     // Respawn objects when they pass the player
     if (coin.position.z > 10) respawnToken(coin);
     if (obstacle.position.z > 10) respawnObstacle();
     if (speedBoostOrb.position.z > 10) respawnToken(speedBoostOrb, 40, 400);
+    if (treasureChest.position.z > 10) respawnToken(treasureChest,100, 500);
 
     //animate partcles
     animateParticles()
     animateGround()
+
+    //ensure bounding box follows
+    //treasureChestBox.setFromObject(treasureChest);
 
     renderer.render(scene, camera);
 }
