@@ -118,6 +118,8 @@ let stage = 1;
 let movingLog = false;
 let poweredUP = false;
 let poweredUPStart = null;
+let speedBoost = false;
+let speedBoostStart = null;
 
 
 // ---- Tadpole (Player) Properties ----
@@ -134,6 +136,7 @@ const scoreElement = document.getElementById('score');
 const stageElement = document.getElementById('stage');
 const gameOverElement = document.getElementById('gameOver');
 const powerElement = document.getElementById('power');
+const speedBoostElement = document.getElementById('speedBoost');
 
 //-----Textures for ground-----------
 //NOTES: Add Sliding Floor Texture??
@@ -244,6 +247,19 @@ let pUP = new THREE.Mesh(pUPGeometry, pUPMaterial);
 pUP.rotation.x = Math.PI / 2;
 pUP.position.z = 15;
 scene.add(pUP);
+
+
+//--Speed Boost----
+const boostDuration = 3000; // Duration of the boost in milliseconds
+const boostMultiplier = 2;  // Speed multiplier
+
+const speedBoostGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+const speedBoostMaterial = new THREE.MeshStandardMaterial({ color: 0x800080, emissive: 0x6a0dad });
+let speedBoostOrb = new THREE.Mesh(speedBoostGeometry, speedBoostMaterial);
+speedBoostOrb.position.z = 15;
+speedBoostOrb.position.y = 1;
+scene.add(speedBoostOrb);
+
 
 
 //------Water fog---------
@@ -498,15 +514,21 @@ function animateTadpoleTilting() {
 
 
 // ---- Respawn Functions with Fixed Z Position ----
-function respawnToken(obj) {
+function respawnToken(obj, zmin = 13, zmax = 17) {
+    // Ensure zmax is not less than the default lower bound
+    if (zmax < zmin) {
+        console.warn(`zmax (${zmax}) is less than the default lower bound (${lowerBound}). Using default range.`);
+        zmax = zmin+1;
+    }
 
-    let zspawn = -(Math.random()*(17-13)+13);
+    let zspawn = -(Math.random() * (zmax - zmin) + zmin);
     obj.position.set(
         (Math.random() - 0.5) * 10,  // Random X position
         1,                           // Fixed Y position
-        zspawn              // Fixed initial Z position
+        zspawn                       // Random Z position
     );
 }
+
 
 function respawnObstacle() {
     obstacle.visible = true;
@@ -529,7 +551,7 @@ function respawnObstacle() {
 
 // ---- Check for Collision with Tadpole ----
 function checkCollision(obj) {
-  if (obj === coin || obj === pUP) {
+  if (obj === coin || obj === pUP || (speedBoostOrb && obj === speedBoostOrb)) {
       // For coin, keep using sphere collision (distance-based)
       const distance = tadpole.position.distanceTo(obj.position);
       return distance < 0.6;
@@ -563,16 +585,20 @@ function restartGame() {
     jumpsRemaining = MAX_JUMPS;
     gameOn = true;
     poweredUP = false;
+    speedBoost = false;
+    speedBoostStart = null;
     obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
     movingLog = false;
     
     gameOverElement.style.display = 'none';
     powerElement.style.display = 'none';
+    speedBoostElement.style.display = 'none';
     scoreElement.innerHTML = `Score: ${score}`;
     stageElement.innerHTML = `Stage: ${stage}`;
     
     // Reset object positions with fixed Z values
     respawnToken(coin);
+    respawnToken(speedBoostOrb, 40, 400);
     respawnObstacle();
     pUP.position.z = 15;
     
@@ -624,7 +650,15 @@ function animateParticles() {
     }
     particleSystem.geometry.attributes.position.needsUpdate = true;
 }
+//----Change tadpole color----
+function changeTadpoleColor(colorCode = 0x800080 ) {
+    const color = new THREE.Color(colorCode); // Purple color
 
+    headMaterial.color.set(color);
+    tailMaterial.color.set(color);
+    eyeMaterial.color.set(color);
+    pupilMaterial.color.set(color);
+}
 
 
 //-----Animate ground----
@@ -728,6 +762,8 @@ function animate() {
 
     obstacle.position.z += obstacle_velocity;
 
+    speedBoostOrb.position.z += obstacle_velocity;//Speed boost on coin velocity
+
     if(movingLog){
         animateLog()
     }
@@ -752,11 +788,29 @@ function animate() {
         respawnToken(coin);
     }
 
+    if(checkCollision(speedBoostOrb)){
+        speedBoost = true;
+        speedBoostStart = time;
+        obstacle_velocity = obstacle_velocity*2;
+        respawnToken(speedBoostOrb, 300, 400);
+    }
+
     if (checkCollision(pUP)){
         poweredUP = true;
         poweredUPStart = time;
         pUP.position.z = 15;
         playSound(powerUpSound);
+    }
+
+    if(speedBoost){
+        let timeLeft = Math.ceil(speedBoostStart+10-time)
+        changeTadpoleColor(0x800080);
+        
+        if(time-speedBoostStart >= 10){
+            changeTadpoleColor(0x93DC5C);
+            obstacle_velocity = obstacle_velocity/2;
+            speedBoost = false;
+        }
     }
 
     if (poweredUP){
@@ -795,6 +849,7 @@ function animate() {
     // Respawn objects when they pass the player
     if (coin.position.z > 10) respawnToken(coin);
     if (obstacle.position.z > 10) respawnObstacle();
+    if (speedBoostOrb.position.z > 10) respawnToken(speedBoostOrb, 40, 400);
 
     //animate partcles
     animateParticles()
@@ -805,5 +860,6 @@ function animate() {
 
 // ---- Initial Setup ----
 respawnToken(coin);    // Initial coin spawn
+respawnToken(speedBoostOrb, 20, 60); // Initial speed boost spawn
 respawnObstacle(); // Initial obstacle spawn
 animate();        // Start game loop
