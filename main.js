@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { Audio, AudioLoader, AudioListener } from 'three';
 
@@ -83,6 +84,20 @@ audioLoader.load('/sounds/logBreak.mp3', (buffer) => {
     logBreakSound.setBuffer(buffer);
     logBreakSound.setLoop(false);
     logBreakSound.setVolume(0.5);
+});
+
+const chestSound = new Audio(listener);
+audioLoader.load('/sounds/chest.mp3', (buffer) => {
+    chestSound.setBuffer(buffer);
+    chestSound.setLoop(false);
+    chestSound.setVolume(0.5);
+});
+
+const speedOrbSound = new Audio(listener);
+audioLoader.load('/sounds/speedup.mp3', (buffer) => {
+    speedOrbSound.setBuffer(buffer);
+    speedOrbSound.setLoop(false);
+    speedOrbSound.setVolume(0.5);
 });
 
 function playSound(sound) {
@@ -297,12 +312,16 @@ scene.add(coin);
 
 
 // ---- Power-up ----
-const pUPGeometry = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 32);
-const pUPMaterial = new THREE.MeshPhongMaterial({ color: 0xFF0000, specular: 0xFFFFFF, shininess: 200});
+const pUPGeometry = new THREE.OctahedronGeometry(0.3);
+const pUPMaterial = new THREE.MeshStandardMaterial({
+    color: 0x00FFFF,      // Bright Cyan
+    emissive: 0x004C4C,   // Darker teal for emissive glow
+    emissiveIntensity: 0.5,
+    metalness: 0.3,
+    roughness: 0.5
+});
 let pUP = new THREE.Mesh(pUPGeometry, pUPMaterial);
-pUP.rotation.x = Math.PI / 2;
-pUP.position.z = 15;
-pUP.position.y=1;
+pUP.position.set(0, 1, 15);
 scene.add(pUP);
 
 
@@ -310,8 +329,15 @@ scene.add(pUP);
 const boostDuration = 3000; // Duration of the boost in milliseconds
 const boostMultiplier = 2;  // Speed multiplier
 
-const speedBoostGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-const speedBoostMaterial = new THREE.MeshStandardMaterial({ color: 0x800080, emissive: 0x6a0dad });
+const speedBoostGeometry = new THREE.TorusGeometry(0.3, 0.1, 16, 100);
+const speedBoostMaterial = new THREE.MeshStandardMaterial({
+    color: 0xA040A0,  
+    emissive: 0x500050,  
+    emissiveIntensity: 0.5,
+    metalness: 0.6,
+    roughness: 0.3
+});
+
 let speedBoostOrb = new THREE.Mesh(speedBoostGeometry, speedBoostMaterial);
 speedBoostOrb.position.z = 15;
 speedBoostOrb.position.y = 1;
@@ -969,6 +995,7 @@ function animate() {
     animateRippleEffect(time);
     animateTadpoleTilting();
     animateBlob(time);
+
     // Apply underwater movement physics
     if (moveLeft) playerX -= MOVEMENT_SPEED;
     if (moveRight) playerX += MOVEMENT_SPEED;
@@ -1010,6 +1037,7 @@ function animate() {
     obstacle.position.z += obstacle_velocity;
     
     speedBoostOrb.position.z += obstacle_velocity;//Speed boost on coin velocity
+    speedBoostOrb.rotation.y += 0.01;
 
     treasureChest.position.z += obstacle_velocity;
 
@@ -1074,6 +1102,7 @@ function animate() {
         speedBoostStart = time;
         console.log(time)
         obstacle_velocity = obstacle_velocity*2;
+        playSound(speedOrbSound);
         respawnToken(speedBoostOrb, 300, 400);
     }
 
@@ -1119,6 +1148,7 @@ function animate() {
     if(checkCollision(treasureChest)){
         respawnToken(treasureChest,100, 400);
         score = score += 40;
+        playSound(chestSound);
         if((score%100 >= 50 && (score-40)%100 < 50) || (score%100 >= 0 && (score-40)%100 > 50)){
             stage +=1;
             stageElement.innerHTML = `Stage: ${stage}`;
@@ -1169,10 +1199,9 @@ function animate() {
     // animate caustics
     causticsTexture.offset.x += 0.0002;
     causticsTexture.offset.y += 0.0002;
-    
+
     //animate partcles
     animateParticles()
-
     animateGround()
 
     //ensure bounding box follows
