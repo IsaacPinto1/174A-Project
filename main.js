@@ -647,9 +647,6 @@ window.addEventListener('keydown', (event) => {
                   jumpsRemaining--;
               }
               break;
-          case 'k':
-            hitCoin();
-            break;
       }
   } else {
       // Only allow restart when game is over
