@@ -55,7 +55,7 @@ audioLoader.load('/sounds/bg.mp3', (buffer) => {
     bgSound.setBuffer(buffer);
     bgSound.setLoop(false);
     bgSound.setVolume(0.5);
-    // bgSound.play();
+    //bgSound.play();
 });
 
 const coinSound = new Audio(listener);
@@ -118,11 +118,11 @@ const WATER_RESISTANCE = 0.98;  // Slows down movement over time
 //---Player---
 const INITIAL_VELOCITY = 0.15; 
 const MAX_ANGLE = Math.PI / 4; // 45 degrees in radians
-const MOVEMENT_SPEED = 0.05;    // Slower horizontal movement for underwater feel
+const MOVEMENT_SPEED = 0.1;    // Slower horizontal movement for underwater feel
 const MAX_JUMPS = 3; // For mid-way jumps
 
 //---Objects------
-const STARTING_OBSTACLE_VELOCITY = 0.05;
+const STARTING_OBSTACLE_VELOCITY = 0.15;
 let obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
 const COIN_VELOCITY = 0.1;
 const PUP_VELOCITY = 0.05
@@ -647,6 +647,9 @@ window.addEventListener('keydown', (event) => {
                   jumpsRemaining--;
               }
               break;
+          case 'k':
+            hitCoin();
+            break;
       }
   } else {
       // Only allow restart when game is over
@@ -830,6 +833,7 @@ function restartGame() {
     playerX = 0;
     playerY = 1;
     velocityY = 0;
+    shieldThreshold = 100;
     jumpsRemaining = MAX_JUMPS;
     gameOn = true;
     poweredUP = false;
@@ -977,9 +981,41 @@ function onWindowResize() {
     renderer.setPixelRatio(window.devicePixelRatio);
 }
 
+function hitCoin(){
+    if (true) {
+        score += goldGained;
+        playSound(coinSound);
+        const prevBoundary = Math.floor((score - goldGained) / 50);
+        const newBoundary = Math.floor(score / 50);
+
+        if(newBoundary > prevBoundary){
+            stage +=1;
+            stageElement.innerHTML = `Stage: ${stage}`;
+            obstacle_velocity = obstacle_velocity + 0.02;
+            speed= obstacle_velocity*0.4;
+        }
+        if(score > 99){
+            movingLog = true;
+        }
+        if(score > 174 && !enableVolcano){
+            enableVolcano = true;
+            for(const volcano of volcanoes){
+                volcano.position.z = Math.random()* 60 +20;
+            }
+        }
+        if(score >= shieldThreshold){
+            respawnToken(pUP);
+            shieldThreshold += 100;
+        }
+        scoreElement.innerHTML = `Score: ${score}`;
+        respawnToken(coin);
+    }
+}
+
 
 let dissolveProgress = 0.0;
 let dissolving = false;
+let shieldThreshold = 100;
 
 // ---- Main Animation Loop ----
 function animate() {
@@ -1093,8 +1129,9 @@ function animate() {
                 volcano.position.z = Math.random()* 60 +20;
             }
         }
-        if(score % 100 == 0){
+        if(score > shieldThreshold){
             respawnToken(pUP);
+            shieldThreshold += 100;
         }
         scoreElement.innerHTML = `Score: ${score}`;
         respawnToken(coin);
