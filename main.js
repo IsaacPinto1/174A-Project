@@ -115,6 +115,7 @@ const GROUND_LENGTH = 40;
 
 // ---- Game Variables ----
 let stage = 1;
+let highscore = 0;
 let movingLog = false;
 let poweredUP = false;
 let poweredUPStart = null;
@@ -136,7 +137,7 @@ const scoreElement = document.getElementById('score');
 const stageElement = document.getElementById('stage');
 const gameOverElement = document.getElementById('gameOver');
 const powerElement = document.getElementById('power');
-const speedBoostElement = document.getElementById('speedBoost');
+const highscoreElement = document.getElementById('highscore');
 
 //-----Textures for ground-----------
 //NOTES: Add Sliding Floor Texture??
@@ -401,12 +402,7 @@ let goldGained = 10;
 
 //------Water fog---------
 scene.fog = new THREE.Fog(0x328dbf, -2, 33); // Dark blue fog color for underwater effect
-const fogAmbientLight = new THREE.AmbientLight(0x334d5c, 0.6); // Soft blue ambient light
-scene.add(ambientLight);
 
-const fogDirectionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-directionalLight.position.set(5, 10, 5);
-scene.add(directionalLight);
 
 // ---- Obstacle Texture ----
 logSideTexture.wrapS = THREE.RepeatWrapping; //Horizontal Wrap
@@ -753,6 +749,7 @@ function restartGame() {
     for(const volcano of volcanoes){
         volcano.position.z = 15;
     }
+    highscore = Math.max(score, highscore);
     score = 0;
     stage = 1;
     playerX = 0;
@@ -765,24 +762,26 @@ function restartGame() {
     speedBoostStart = null;
     obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
     movingLog = false;
-    
+
+
     gameOverElement.style.display = 'none';
     powerElement.style.display = 'none';
     scoreElement.innerHTML = `Score: ${score}`;
     stageElement.innerHTML = `Stage: ${stage}`;
+    highscoreElement.innerHTML = `Highscore: ${highscore}`;
     
     // Reset object positions with fixed Z values
     respawnToken(coin);
     respawnToken(speedBoostOrb, 40, 400);
-    respawnToken(TreasureChest,100, 500);
     pUP.position.z = 15;
     
     tadpole.position.set(playerX, playerY, playerZ);
-
+    console.log("Game Restarted");
     //Restart Background Music if ended
     if (!bgSound.isPlaying) {
       //bgSound.play();
     }
+    respawnToken(treasureChest, 100, 500);
 }
 
 // ---- Blob Effect ----

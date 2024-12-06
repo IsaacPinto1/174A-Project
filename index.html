@@ -13,14 +13,19 @@
 
 		
 			/* Score and Stage Text */
-			#score, #stage, #power {
+			#highscore, #score, #stage, #power {
 				position: absolute;
 				font-family: 'Luckiest Guy', cursive;
 				font-size: 24px;
 				text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.8);
 				transition: transform 0.3s ease, text-shadow 0.3s ease; /* Smooth hover effect */
 			}
+			#highscore {
+				top: 5%;
+				left: 5%;
+				color: #FFD166; 
 
+			}
 			#score {
 				top: 10%;
 				left: 5%;
@@ -85,6 +90,7 @@
 		</style>
 	</head>
 	<body>
+		<div id="highscore">Highscore: 0</div>
 		<div id="score">Score: 0</div>
 		<div id="stage">Stage: 1</div>
 		<div id="power">Power Up: 1</div>
