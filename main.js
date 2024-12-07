@@ -118,11 +118,11 @@ const WATER_RESISTANCE = 0.98;  // Slows down movement over time
 //---Player---
 const INITIAL_VELOCITY = 0.15; 
 const MAX_ANGLE = Math.PI / 4; // 45 degrees in radians
-const MOVEMENT_SPEED = 0.1;    // Slower horizontal movement for underwater feel
+const MOVEMENT_SPEED = 0.075;    // Slower horizontal movement for underwater feel
 const MAX_JUMPS = 3; // For mid-way jumps
 
 //---Objects------
-const STARTING_OBSTACLE_VELOCITY = 0.15;
+const STARTING_OBSTACLE_VELOCITY = 0.10;
 let obstacle_velocity = STARTING_OBSTACLE_VELOCITY;
 const COIN_VELOCITY = 0.1;
 const PUP_VELOCITY = 0.05
